@@ -1,0 +1,326 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FluxPay",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/payments": {
+      "post": {
+        "summary": "Post Payment",
+        "description": "Execute or replay a financial payment transaction.\n\nThree-tier idempotency dance:\n1. Redis fastpath replay: intercepted and returned by GatewayMiddleware.\n2. Database-tier replay: returned by service.pay using cached wire bytes.\n3. Fresh execution: posted to double-entry ledger with atomic event publish.",
+        "operationId": "post_payment_v1_payments_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/{tx_id}": {
+      "get": {
+        "summary": "Get Payment",
+        "description": "Query settled payment transaction by transaction ID.\n\nProduct Decision (Ledger-Truth):\nGET by id reflects double-entry ledger truth. Held payments await human review\nin payment_holds and have no ledger transaction, returning 404 here.\nHeld payments are notified via webhooks and future status endpoints (Phase 2).",
+        "operationId": "get_payment_v1_payments__tx_id__get",
+        "parameters": [
+          {
+            "name": "tx_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tx Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/balance": {
+      "get": {
+        "summary": "Get Balance",
+        "description": "Query available ledger balance for the authenticated agent.",
+        "operationId": "get_balance_v1_balance_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalanceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BalanceResponse": {
+        "properties": {
+          "balance": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Balance",
+            "description": "Available ledger balance in minor units (non-negative integer).",
+            "example": 1050
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,10}$",
+            "title": "Currency",
+            "description": "Currency code for the balance account.",
+            "example": "USDC"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "balance",
+          "currency"
+        ],
+        "title": "BalanceResponse",
+        "description": "Wire model for GET /v1/balance (HTTP 200 OK).",
+        "example": {
+          "balance": 1050,
+          "currency": "USDC"
+        }
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "PaymentDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique payment identifier (ledger tx_id).",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "settled",
+              "held"
+            ],
+            "title": "Status",
+            "description": "Payment status ('settled' or 'held').",
+            "example": "settled"
+          },
+          "amount": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "description": "Payment amount in integer minor units (minor units: 6 decimals for USDC).",
+            "example": 1050
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,10}$",
+            "title": "Currency",
+            "description": "Currency code.",
+            "example": "USDC"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "description": "Creation timestamp in UTC ISO-8601 format with explicit '+00:00' offset.",
+            "example": "2026-09-25T12:00:00+00:00"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "amount",
+          "currency",
+          "created_at"
+        ],
+        "title": "PaymentDetail",
+        "description": "Wire model for GET /v1/payments/{id} (HTTP 200 OK).",
+        "example": {
+          "amount": 1050,
+          "created_at": "2026-09-25T12:00:00+00:00",
+          "currency": "USDC",
+          "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "status": "settled"
+        }
+      },
+      "PaymentRequest": {
+        "properties": {
+          "to": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]{3,64}$",
+            "title": "To",
+            "description": "Target merchant identifier (canonical lowercase handle).",
+            "example": "merchant_demo"
+          },
+          "amount": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "description": "Payment amount in integer minor units (e.g. 1050 = $10.50 USDC; minor units: 6 decimals for USDC).",
+            "example": 1050
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,10}$",
+            "title": "Currency",
+            "description": "Currency symbol (2-10 uppercase alphanumeric characters, e.g. 'USDC').",
+            "example": "USDC"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "to",
+          "amount",
+          "currency"
+        ],
+        "title": "PaymentRequest",
+        "description": "Wire model for POST /v1/payments request body.\n\nTransport Note:\nThe idempotency key is intentionally omitted from this payload because it is conveyed\nvia the `X-FLX-Idempotency-Key` HTTP header (Task 19/21/22). This allows reverse proxies\nand gateway middleware to inspect and enforce deduplication before reading the request body.",
+        "example": {
+          "amount": 1050,
+          "currency": "USDC",
+          "to": "merchant_demo"
+        }
+      },
+      "PaymentResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique payment identifier (corresponds 1:1 with ledger tx_id in Phase 1).",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "settled",
+              "held"
+            ],
+            "title": "Status",
+            "description": "Terminal execution status for synchronous rails ('settled' or 'held').",
+            "example": "settled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "PaymentResponse",
+        "description": "Wire model for POST /v1/payments (HTTP 201 Created).\n\nIdentity Guarantee (Task 31):\nIn Phase 1, `id` is identical to the ledger transaction ID (tx_id) \u2014 there is exactly\none internal ledger transaction per external payment.\n\nStatus Guarantee:\nOnly terminal success states ('settled' | 'held') are valid for 201 Created.\nWHY no 'failed': Failures are ERROR responses (HTTP 4xx/5xx) serialized using the standard\nErrorEnvelope. Returning a 201 with status='failed' would force autonomous agent clients to\ninspect payload contents rather than relying on HTTP status semantics.\n\nStatus Evolution Rule:\n'pending' is reserved for future asynchronous settlement rails (Phase 2).\nAdding enum members is backward-compatible for tolerant agent parsers; today's contract\nstrictly freezes status to 'settled' | 'held'.",
+        "example": {
+          "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "status": "settled"
+        }
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+[Unit]
+Description=FluxPay Reconciliation Worker (Daily Truth Audit One-Shot)
+Documentation=https://github.com/fluxpay/fluxpay/blob/main/docs/ledger.md#reconciliation
+After=network-online.target postgresql.service valkey.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=fluxpay-worker
+Group=fluxpay-worker
+EnvironmentFile=/etc/fluxpay/env
+ExecStart=/opt/fluxpay/venv/bin/python -m fluxpay.workers.reconciliation
+StandardOutput=journal
+StandardError=journal
+
+# Hardening Block (Task 18 / Task 65 security baseline)
+ProtectSystem=strict
+ProtectHome=true
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+MemorySwapMax=0
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

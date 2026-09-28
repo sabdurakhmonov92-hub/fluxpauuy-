@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: "FluxPay Dashboards"
+    orgId: 1
+    folder: "FluxPay"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards

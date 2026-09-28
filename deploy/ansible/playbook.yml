@@ -1,0 +1,812 @@
+---
+# ==============================================================================
+# FluxPay Server Provisioning & Hardening Playbook (Task 67)
+# Blueprint §11: Reproducibility Contract & The Bus-Factor Law.
+#
+# ARCHITECTURAL DESIGN DECISION: INLINE BLOCKS VS. ROLES TREE:
+# -----------------------------------------------------------
+# We deliberately implement inline task blocks (BLOCK A through BLOCK G) in this
+# single playbook rather than a ceremonial Ansible 'roles/' hierarchy (roles/base,
+# roles/postgres, roles/nginx, etc.).
+#
+# WHY: A roles hierarchy distributes a single appliance configuration across 30+
+# fragmented files, obscuring execution order and variable precedence. In financial
+# infrastructure compliance, an auditor must be able to read "EVERYTHING running on prod"
+# top-to-bottom in 15 minutes. A linear, sequential playbook provides an unambiguous,
+# verifiable audit trail with zero hidden dependencies.
+#
+# THE PROVISIONING VS. DEPLOYING BOUNDARY:
+# ---------------------------------------
+# Provisioning (this playbook) builds CAPACITY and wires PIPES: it creates users,
+# installs runtimes, tunes the kernel, configures firewall/journald, initialises
+# schemas, and enables systemd units.
+#
+# Deploying (Task 65's deploy.sh) RELEASES APPLICATION CODE: it builds release directories,
+# runs smoke checks, executes blue-green socket swaps, and verifies healthz.
+# The playbook terminates by printing the operator bootstrap checklist and instructing
+# the operator to execute the initial deploy.sh. It NEVER auto-deploys uninspected code.
+# ==============================================================================
+
+- name: "FluxPay Production Appliance Provisioning & Hardening"
+  hosts: all
+  become: true
+  gather_facts: true
+
+  # ----------------------------------------------------------------------------
+  # PRE-FLIGHT CHECKS & SAFETY INVARIANTS
+  # ----------------------------------------------------------------------------
+  pre_tasks:
+    - name: "PRE-FLIGHT | Enforce Python 3 and Ubuntu 24.04 Target"
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+          - ansible_distribution_version is version("24.04", ">=")
+        fail_msg: "ABORT: FluxPay requires Ubuntu 24.04 LTS (Noble Numbat) or newer."
+
+    - name: "PRE-FLIGHT | Enforce Task 44 Wallet Address Placeholder Law"
+      ansible.builtin.assert:
+        that:
+          - wallet_hot_address is defined
+          - wallet_hot_address | length == 42
+          - wallet_hot_address.startswith('0x')
+          - wallet_hot_address != "0x0000000000000000000000000000000000000000"
+          - wallet_cold_address is defined
+          - wallet_cold_address | length == 42
+          - wallet_cold_address.startswith('0x')
+          - wallet_cold_address != "0x0000000000000000000000000000000000000000"
+        fail_msg: >
+          ABORT: Task 44 placeholder law violated! In production, wallet_hot_address
+          and wallet_cold_address cannot be empty or zero-address placeholders.
+          Configure real EVM addresses in deploy/ansible/group_vars/all.yml or pass via --extra-vars.
+          Refer to docs/runbook.md § treasury-custody-addresses.
+      when: fluxpay_env == "production"
+
+    - name: "PRE-FLIGHT | Verify Operator SSH Keys Configured"
+      ansible.builtin.assert:
+        that:
+          - admin_ssh_keys is defined
+          - admin_ssh_keys | length > 0
+        fail_msg: "ABORT: admin_ssh_keys list is empty. Provide at least one authorized operator SSH public key."
+
+  tasks:
+    # ==========================================================================
+    # BLOCK A — BASE HARDENING & OS FOUNDATION
+    # ==========================================================================
+    - name: "BLOCK A | Update apt cache and upgrade packages"
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+        upgrade: "dist"
+
+    - name: "BLOCK A | Install security-critical base utilities"
+      ansible.builtin.apt:
+        name:
+          - unattended-upgrades
+          - apt-listchanges
+          - ufw
+          - curl
+          - ca-certificates
+          - gnupg
+          - lsb-release
+          - software-properties-common
+          - procps
+          - rsync
+          - git
+          - jq
+        state: present
+
+    - name: "BLOCK A | Configure unattended-upgrades (Security patches only)"
+      # WHY: Database and runtime auto-upgrades cause surprise service restarts and
+      # unexpected connection aborts. Automated patching is restricted strictly to security lines.
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/50unattended-upgrades
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          Unattended-Upgrade::Allowed-Origins {
+              "${distro_id}:${distro_codename}-security";
+          };
+          Unattended-Upgrade::Package-Blacklist {
+              "postgresql*";
+              "valkey*";
+              "redis*";
+              "rabbitmq-server*";
+              "nginx*";
+          };
+          Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+          Unattended-Upgrade::MinimalSteps "true";
+          Unattended-Upgrade::InstallOnShutdown "false";
+          Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+          Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
+          Unattended-Upgrade::Automatic-Reboot "false";
+
+    - name: "BLOCK A | Enforce UTC System Timezone"
+      # WHY: Task 33's TZ probe and ledger timestamp anti-replay laws depend strictly
+      # on the host system operating in UTC. Non-UTC server time breaks drift invariants.
+      community.general.timezone:
+        name: UTC
+
+    - name: "BLOCK A | Configure persistent journald with bounded retention"
+      # WHY: Task 65 deferred log-rotation to journald. We enforce SystemMaxUse=2G
+      # to prevent high-throughput payment transaction logs from exhausting the root volume.
+      ansible.builtin.copy:
+        dest: /etc/systemd/journald.conf.d/00-fluxpay.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Journal]
+          Storage=persistent
+          SystemMaxUse=2G
+          SystemMaxFileSize=200M
+          MaxRetentionSec=1month
+          RateLimitIntervalSec=30s
+          RateLimitBurst=10000
+      notify: restart systemd-journald
+
+    - name: "BLOCK A | Check and load BBR kernel module"
+      community.general.modprobe:
+        name: tcp_bbr
+        state: present
+      ignore_errors: true
+
+    - name: "BLOCK A | Configure sysctl kernel networking parameters (Task 21 Law)"
+      # WHY: Task 21 Blueprint §11 kernel contract: 64k somaxconn for socket bursts,
+      # tcp_fastopen=3 for round-trip latency minimization, and BBR congestion control.
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/99-fluxpay.conf
+      loop:
+        - { name: "net.core.somaxconn", value: "65535" }
+        - { name: "net.ipv4.tcp_fastopen", value: "3" }
+        - { name: "net.core.default_qdisc", value: "fq" }
+        - { name: "net.ipv4.tcp_congestion_control", value: "bbr" }
+        - { name: "net.ipv4.tcp_max_syn_backlog", value: "16384" }
+        - { name: "fs.file-max", value: "2097152" }
+
+    - name: "BLOCK A | Configure SSH daemon hardening"
+      # WHY: PasswordAuthentication is disabled to eliminate credential brute-forcing.
+      # PermitRootLogin is set to prohibit-password (NOT no) to allow initial key-based
+      # bootstrap while preventing unauthenticated remote root access.
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/00-fluxpay.conf
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          PasswordAuthentication no
+          PermitRootLogin prohibit-password
+          MaxAuthTries 3
+          PubkeyAuthentication yes
+          X11Forwarding no
+          AllowAgentForwarding no
+          AllowUsers {{ admin_user }} root
+      notify: restart ssh
+
+    - name: "BLOCK A | Configure UFW firewall policies"
+      # WHY: Task 49 outbound adapter law: allow default outgoing (Stripe, Base L2, SendGrid,
+      # Telegram HTTP calls), strictly deny incoming traffic except audited ports.
+      community.general.ufw:
+        direction: "{{ item.direction }}"
+        policy: "{{ item.policy }}"
+      loop:
+        - { direction: "incoming", policy: "deny" }
+        - { direction: "outgoing", policy: "allow" }
+
+    - name: "BLOCK A | Allow inbound firewall traffic on defined service ports"
+      # Only ports 22 (SSH), 80 (HTTP redirect), and 443 (HTTPS) are exposed.
+      community.general.ufw:
+        rule: allow
+        port: "{{ item.value | string }}"
+        proto: tcp
+        comment: "FluxPay {{ item.key }}"
+      loop: "{{ firewall_ports | dict2items }}"
+
+    - name: "BLOCK A | Enable UFW service"
+      community.general.ufw:
+        state: enabled
+
+    # ==========================================================================
+    # BLOCK B — RUNTIME & INFRASTRUCTURE SUBSYSTEMS
+    # ==========================================================================
+    - name: "BLOCK B | Configure PostgreSQL PGDG official repository key"
+      # WHY: Ubuntu 24.04 main repos ship PostgreSQL 16. FluxPay pins PostgreSQL 17
+      # for enhanced vacuum performance, lock throughput, and JSON query optimizations.
+      ansible.builtin.get_url:
+        url: "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
+        dest: /etc/apt/keyrings/postgresql.asc
+        mode: "0644"
+
+    - name: "BLOCK B | Add PostgreSQL PGDG 17 repository line"
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/postgresql.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main {{ postgresql_version }}"
+        state: present
+        filename: pgdg
+
+    - name: "BLOCK B | Configure Doppler CLI repository key"
+      ansible.builtin.get_url:
+        url: "https://packages.doppler.com/public/cli/gpg.key"
+        dest: /etc/apt/keyrings/doppler.asc
+        mode: "0644"
+
+    - name: "BLOCK B | Add Doppler CLI official repository"
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/doppler.asc] https://packages.doppler.com/public/cli/deb/any any main"
+        state: present
+        filename: doppler
+
+    - name: "BLOCK B | Install core database, messaging, and reverse-proxy packages"
+      ansible.builtin.apt:
+        name:
+          - "postgresql-{{ postgresql_version }}"
+          - "postgresql-client-{{ postgresql_version }}"
+          - python3-psycopg2
+          - rabbitmq-server
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+          - doppler
+        state: present
+        update_cache: true
+
+    - name: "BLOCK B | Install Valkey caching & lock engine (with Redis fallback)"
+      # WHY: Task 6 / Blueprint §11 specified Valkey 7.2+. We attempt Valkey package
+      # installation, gracefully falling back to redis-server if Valkey is pending packaging.
+      block:
+        - name: "Attempt valkey package installation"
+          ansible.builtin.apt:
+            name: valkey
+            state: present
+      rescue:
+        - name: "Fallback to redis-server package"
+          ansible.builtin.apt:
+            name: redis-server
+            state: present
+
+    - name: "BLOCK B | Tune PostgreSQL 17 server engine (Task 13/33 Durability Law)"
+      # WHY: synchronous_commit=on is non-negotiable for payment ledgers (financial safety over raw IOPs).
+      # max_connections=100 leaves room for PgBouncer in Phase 2 without exhausting backend RAM.
+      ansible.builtin.copy:
+        dest: "/etc/postgresql/{{ postgresql_version }}/main/conf.d/99-fluxpay.conf"
+        owner: postgres
+        group: postgres
+        mode: "0644"
+        content: |
+          # FluxPay PostgreSQL 17 Performance & Durability Profile
+          shared_buffers = 2GB
+          effective_cache_size = 6GB
+          work_mem = 32MB
+          maintenance_work_mem = 512MB
+          max_connections = 100
+          synchronous_commit = on
+          checkpoint_completion_target = 0.9
+          wal_buffers = 16MB
+          default_statistics_target = 100
+          random_page_cost = 1.1
+          effective_io_concurrency = 200
+          min_wal_size = 1GB
+          max_wal_size = 8GB
+      notify: restart postgresql
+
+    - name: "BLOCK B | Download and install uv packaging engine"
+      # WHY: Astral uv provides reproducible, sub-second dependency locking and isolated venvs.
+      ansible.builtin.get_url:
+        url: "https://github.com/astral-sh/uv/releases/download/{{ uv_version }}/uv-x86_64-unknown-linux-gnu.tar.gz"
+        dest: /tmp/uv.tar.gz
+        mode: "0644"
+
+    - name: "BLOCK B | Extract and place uv binary in /usr/local/bin"
+      ansible.builtin.unarchive:
+        src: /tmp/uv.tar.gz
+        dest: /usr/local/bin/
+        remote_src: true
+        extra_opts:
+          - "--strip-components=1"
+        creates: /usr/local/bin/uv
+
+    - name: "BLOCK B | Set executable permissions on uv binary"
+      ansible.builtin.file:
+        path: /usr/local/bin/uv
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: "BLOCK B | Ensure infrastructure services are active and enabled"
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop:
+        - "postgresql@{{ postgresql_version }}-main"
+        - rabbitmq-server
+        - nginx
+
+    # ==========================================================================
+    # BLOCK C — SYSTEM USERS, DIRECTORIES & ENVIRONMENT CONTRACT
+    # ==========================================================================
+    - name: "BLOCK C | Create unified application group"
+      ansible.builtin.group:
+        name: "{{ app_group }}"
+        state: present
+        system: true
+
+    - name: "BLOCK C | Create administrative operator user"
+      # The audited human account with sudo capabilities for day-2 maintenance.
+      ansible.builtin.user:
+        name: "{{ admin_user }}"
+        group: "{{ app_group }}"
+        groups: sudo
+        append: true
+        shell: /bin/bash
+        home: "/home/{{ admin_user }}"
+        create_home: true
+        state: present
+
+    - name: "BLOCK C | Authorize operator SSH public keys"
+      ansible.posix.authorized_key:
+        user: "{{ admin_user }}"
+        state: present
+        key: "{{ item }}"
+      loop: "{{ admin_ssh_keys }}"
+
+    - name: "BLOCK C | Configure passwordless sudo for admin user"
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/00-{{ admin_user }}"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: "visudo -cf %s"
+        content: |
+          {{ admin_user }} ALL=(ALL) NOPASSWD:ALL
+
+    - name: "BLOCK C | Create unprivileged API runtime system user"
+      # WHY: Task 65 systemd unit security: fluxpay-api runs with NoNewPrivileges=yes,
+      # ProtectSystem=strict, and cannot escalate privileges.
+      ansible.builtin.user:
+        name: "{{ api_user }}"
+        group: "{{ app_group }}"
+        shell: /usr/sbin/nologin
+        home: "{{ app_root }}"
+        create_home: false
+        system: true
+        state: present
+
+    - name: "BLOCK C | Create unprivileged Worker runtime system user"
+      ansible.builtin.user:
+        name: "{{ worker_user }}"
+        group: "{{ app_group }}"
+        shell: /usr/sbin/nologin
+        home: "{{ app_root }}"
+        create_home: false
+        system: true
+        state: present
+
+    - name: "BLOCK C | Establish standard application directory tree"
+      # Ownership: 750 on root dirs, 770 on runtime socket directory
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ app_root }}", owner: "root", group: "{{ app_group }}", mode: "0750" }
+        - { path: "{{ app_root }}/src", owner: "{{ admin_user }}", group: "{{ app_group }}", mode: "0770" }
+        - { path: "{{ app_root }}/releases", owner: "{{ admin_user }}", group: "{{ app_group }}", mode: "0770" }
+        - { path: "{{ etc_root }}", owner: "root", group: "{{ app_group }}", mode: "0750" }
+        - { path: "{{ run_root }}", owner: "{{ api_user }}", group: "{{ app_group }}", mode: "0770" }
+
+    - name: "BLOCK C | Configure systemd tmpfiles rule for /run/fluxpay"
+      # Recreates the UDS socket directory across server reboots before services start.
+      ansible.builtin.copy:
+        dest: /etc/tmpfiles.d/fluxpay.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          d {{ run_root }} 0770 {{ api_user }} {{ app_group }} -
+
+    - name: "BLOCK C | Deploy /etc/fluxpay/env template (Complete FLX_ Settings Contract)"
+      # WHY: Auto-sync law: This template enumerates 100% of Settings fields from Task 3.
+      # Secrets are left as placeholders for Doppler to render into /etc/fluxpay/env.
+      ansible.builtin.copy:
+        dest: "{{ etc_root }}/env.template"
+        owner: root
+        group: "{{ app_group }}"
+        mode: "0640"
+        content: |
+          # ==============================================================================
+          # FluxPay Production Environment Contract (/etc/fluxpay/env)
+          # Managed by Doppler SecretOps Pipeline (Task 67 / Task 68).
+          # Render command: doppler secrets download --no-file --format env > /etc/fluxpay/env
+          # ==============================================================================
+
+          # --- Postgres (Task 3 / Blueprint §11) ---
+          FLX_PG_DSN="postgresql://fluxpay_app:DOPPLER_SECRET_FLX_PG_PASSWORD@localhost:5432/fluxpay_db"
+          FLX_PG_POOL_MIN=2
+          FLX_PG_POOL_MAX=20
+
+          # --- Valkey / RabbitMQ ---
+          FLX_VALKEY_URL="redis://localhost:6379/0"
+          FLX_RABBITMQ_URL="amqp://localhost:5672/"
+
+          # --- Security Master Keys (REQUIRED: Fail-Fast at boot) ---
+          FLX_VAULT_MASTER_KEY="DOPPLER_SECRET_FLX_VAULT_MASTER_KEY"
+          FLX_WEBHOOK_SIGNING_KEY="DOPPLER_SECRET_FLX_WEBHOOK_SIGNING_KEY"
+
+          # --- Gateway & Anti-Replay Invariants (Blueprint §3) ---
+          FLX_REPLAY_WINDOW_MS=30000
+          FLX_RATE_LIMIT_WINDOW_MS=60000
+          FLX_RATE_LIMIT_MAX=100
+          FLX_DAILY_QUOTA_MAX=10000
+          FLX_NONCE_TTL_MS=120000
+
+          # --- Ledger State & Concurrency ---
+          FLX_LEDGER_MAX_OCC_RETRIES=5
+          FLX_ENV="production"
+          FLX_LOG_LEVEL="INFO"
+          FLX_SENTRY_DSN=""
+
+          # --- Idempotency (Task 22) ---
+          FLX_IDEMPOTENCY_FAST_TTL_S=86400
+
+          # --- Keycloak OIDC Authentication (Task 29) ---
+          FLX_KEYCLOAK_JWKS_URL="https://auth.fluxpay.com/realms/fluxpay/protocol/openid-connect/certs"
+          FLX_KEYCLOAK_ISSUER="https://auth.fluxpay.com/realms/fluxpay"
+          FLX_KEYCLOAK_AUDIENCE="https://api.fluxpay.com"
+
+          # --- Notifications: Telegram & Email (Task 43) ---
+          FLX_TELEGRAM_BOT_TOKEN=""
+          FLX_TELEGRAM_ADMIN_CHAT_ID=""
+          FLX_SENDGRID_API_KEY=""
+          FLX_EMAIL_FROM="noreply@fluxpay.com"
+          FLX_NOTIFICATION_RETRY_MAX=5
+          FLX_NOTIFICATION_BACKOFF_BASE_S=2.0
+
+          # --- Treasury & Base L2 Reader (Task 50) ---
+          FLX_BASE_RPC_URL=""
+          FLX_BASE_CHAIN_ID=8453
+          FLX_BASE_USDC_ADDRESS="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+          FLX_BASE_READER_TIMEOUT_S=10.0
+
+          # --- Payment Rail: Stripe (Task 52) ---
+          FLX_STRIPE_SECRET_KEY=""
+          FLX_STRIPE_WEBHOOK_SECRET=""
+          FLX_STRIPE_API_BASE="https://api.stripe.com"
+          FLX_STRIPE_WEBHOOK_TOLERANCE_S=300
+
+          # --- Settlement Rail: Wise (Task 53) ---
+          FLX_WISE_API_KEY=""
+          FLX_WISE_API_BASE="https://api.transferwise.tech"
+          FLX_WISE_WEBHOOK_SECRET=""
+          FLX_WISE_WEBHOOK_TOLERANCE_S=300
+
+          # --- Identity & KYC Adapters (Task 55) ---
+          FLX_SUMSUB_API_KEY=""
+          FLX_SUMSUB_SECRET_KEY=""
+          FLX_SUMSUB_BASE="https://api.sumsub.com"
+          FLX_SUMSUB_LEVEL_NAME="basic-kyc-level"
+          FLX_TRULIOO_API_KEY=""
+          FLX_TRULIOO_BASE="https://gateway.trulioo.com"
+          FLX_KYC_PROVIDER_DEFAULT="manual"
+
+          # --- Internal Dashboard & Cookie Context (Task 61) ---
+          FLX_DASHBOARD_SECRET="DOPPLER_SECRET_FLX_DASHBOARD_SECRET"
+          FLX_DASHBOARD_SESSION_COOKIE_NAME="flx_dash"
+          FLX_DASHBOARD_COOKIE_MAX_AGE_S=28800
+          FLX_DASHBOARD_ORIGIN="https://api.fluxpay.com"
+
+          # --- Observability & Alert Router (Task 69) ---
+          FLX_METRICS_ENABLED=true
+          FLX_METRICS_PORT_BASE=9110
+          FLX_ALERT_ROUTER_PORT=9120
+          FLX_ALERTROUTER_SECRET="DOPPLER_SECRET_FLX_ALERTROUTER_SECRET"
+
+    # ==========================================================================
+    # BLOCK D — DATABASE BOOTSTRAP, GRANTS & MIGRATIONS
+    # ==========================================================================
+    - name: "BLOCK D | Ensure fluxpay_db production database exists"
+      community.postgresql.postgresql_db:
+        name: fluxpay_db
+        state: present
+      become_user: postgres
+
+    - name: "BLOCK D | Provision fluxpay_app unprivileged login role"
+      # The app role authenticates with a password pulled dynamically from Doppler,
+      # or set by peer auth locally. The playbook creates the role safely.
+      community.postgresql.postgresql_user:
+        name: fluxpay_app
+        db: fluxpay_db
+        role_attr_flags: "LOGIN,NOSUPERUSER,NOCREATEDB,NOCREATEROLE"
+        state: present
+      become_user: postgres
+
+    - name: "BLOCK D | Check if git repository is cloned into /opt/fluxpay/src"
+      ansible.builtin.stat:
+        path: "{{ app_root }}/src/deploy/migrate.sh"
+      register: migrate_script_stat
+
+    - name: "BLOCK D | Clone FluxPay repository into /opt/fluxpay/src if absent"
+      ansible.builtin.git:
+        repo: "{{ git_repo_url }}"
+        dest: "{{ app_root }}/src"
+        version: "{{ git_ref }}"
+        force: false
+      become_user: "{{ admin_user }}"
+      when: not migrate_script_stat.stat.exists
+
+    - name: "BLOCK D | Execute SQL migrations pipeline via migrate.sh"
+      # WHY: Task 65 contract: schema migrations apply before application starts.
+      ansible.builtin.command:
+        cmd: "/bin/bash {{ app_root }}/src/deploy/migrate.sh"
+      environment:
+        FLX_PG_DSN: "postgresql://postgres@localhost:5432/fluxpay_db"
+        MIGRATIONS_DIR: "{{ app_root }}/src/migrations"
+      become_user: postgres
+      changed_when: true
+
+    - name: "BLOCK D | Apply database grants contract (Task 13 grants.sql verbatim)"
+      # App role can SELECT, INSERT on ledger_entries; UPDATE, DELETE, TRUNCATE revoked.
+      community.postgresql.postgresql_query:
+        db: fluxpay_db
+        path_to_script: "{{ app_root }}/src/deploy/sql/grants.sql"
+        as_single_query: true
+      become_user: postgres
+
+    - name: "BLOCK D | Apply platform deterministic ledger seed (Task 27 bootstrap.sql)"
+      # Idempotently inserts system, fees, and treasury accounts with UUIDv5 deterministic keys.
+      community.postgresql.postgresql_query:
+        db: fluxpay_db
+        path_to_script: "{{ app_root }}/src/deploy/sql/bootstrap.sql"
+        as_single_query: true
+      become_user: postgres
+
+    - name: "BLOCK D | Update wallet_state custody addresses (Task 44 Law)"
+      community.postgresql.postgresql_query:
+        db: fluxpay_db
+        query: |
+          UPDATE wallet_state
+          SET hot_address = '%(hot)s',
+              cold_address = '%(cold)s',
+              updated_at = now()
+          WHERE rail = 'base_usdc';
+        named_args:
+          hot: "{{ wallet_hot_address }}"
+          cold: "{{ wallet_cold_address }}"
+      become_user: postgres
+      when:
+        - wallet_hot_address | length > 0
+        - wallet_cold_address | length > 0
+
+    # ==========================================================================
+    # BLOCK E — TLS CERTIFICATE & EDGE TERMINATION
+    # ==========================================================================
+    - name: "BLOCK E | Check if Let's Encrypt certificate exists"
+      ansible.builtin.stat:
+        path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+      register: letsencrypt_cert_stat
+
+    - name: "BLOCK E | Request initial TLS certificate via Certbot (Two-Phase Flow)"
+      # Phase 1: Run with --staging until DNS resolution and port 80 are verified.
+      # Phase 2: Flip letsencrypt_staging to false in group_vars to issue valid production cert.
+      ansible.builtin.command:
+        cmd: >
+          certbot certonly --nginx
+          -d {{ domain }}
+          --agree-tos
+          -m {{ letsencrypt_email }}
+          --non-interactive
+          {{ '--staging' if letsencrypt_staging else '' }}
+      when: not letsencrypt_cert_stat.stat.exists
+      register: certbot_output
+      changed_when: certbot_output.rc == 0
+
+    - name: "BLOCK E | Ensure certbot auto-renewal timer is active"
+      ansible.builtin.systemd:
+        name: certbot.timer
+        state: started
+        enabled: true
+
+    # ==========================================================================
+    # BLOCK F — APP CAPACITY PROVISIONING (NOT DEPLOYMENT)
+    # ==========================================================================
+    - name: "BLOCK F | Install Python virtual environment dependencies via uv sync"
+      ansible.builtin.command:
+        cmd: "/usr/local/bin/uv sync --frozen"
+        chdir: "{{ app_root }}/src"
+      become_user: "{{ admin_user }}"
+      changed_when: true
+
+    - name: "BLOCK F | Deploy hardened systemd service and timer units"
+      ansible.builtin.copy:
+        src: "{{ app_root }}/src/deploy/systemd/{{ item }}"
+        dest: "/etc/systemd/system/{{ item }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - fluxpay-api@.service
+        - fluxpay-worker@.service
+        - fluxpay-chain-tip-watchdog.service
+        - fluxpay-chain-tip-watchdog.timer
+        - fluxpay-treasury-sync.service
+        - fluxpay-treasury-sync.timer
+        - fluxpay-reconciliation.service
+        - fluxpay-reconciliation.timer
+        - fluxpay-notification-retry.service
+        - fluxpay-notification-retry.timer
+        - fluxpay-metrics-prune.service
+        - fluxpay-metrics-prune.timer
+
+    - name: "BLOCK F | Reload systemd daemon to recognize unit files"
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: "BLOCK F | Enable systemd units (DO NOT START — Boot Ordering Contract)"
+      # WHY: Provisioning ≠ Deploying. Sockets and services remain stopped until
+      # /etc/fluxpay/env is rendered by the operator and initial deploy.sh runs.
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+      loop:
+        - "fluxpay-api@1"
+        - "fluxpay-api@2"
+        - "fluxpay-worker@fanout"
+        - "fluxpay-worker@delivery"
+        - "fluxpay-chain-tip-watchdog.timer"
+        - "fluxpay-treasury-sync.timer"
+        - "fluxpay-reconciliation.timer"
+        - "fluxpay-notification-retry.timer"
+        - "fluxpay-metrics-prune.timer"
+
+    - name: "BLOCK F | Configure Nginx active upstream pointer to Blue"
+      ansible.builtin.copy:
+        dest: /etc/nginx/fluxpay-active.conf
+        owner: root
+        group: root
+        mode: "0644"
+        force: false
+        content: |
+          # Initial Nginx upstream link managed by deploy.sh blue-green switch
+          set $active_upstream upstream_blue;
+
+    - name: "BLOCK F | Deploy Nginx edge reverse-proxy configuration"
+      ansible.builtin.copy:
+        src: "{{ app_root }}/src/deploy/nginx/fluxpay.conf"
+        dest: /etc/nginx/sites-available/fluxpay.conf
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+      notify: reload nginx
+
+    - name: "BLOCK F | Enable Nginx FluxPay site configuration"
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/fluxpay.conf
+        dest: /etc/nginx/sites-enabled/fluxpay.conf
+        state: link
+      notify: reload nginx
+
+    - name: "BLOCK F | Remove default Nginx welcome site"
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: reload nginx
+
+    # ==========================================================================
+    # --- Task 69 append: Observability Stack & Alert Router Provisioning ---
+    # ==========================================================================
+    - name: "BLOCK M | Install Prometheus, Alertmanager, Grafana, Loki, Promtail"
+      ansible.builtin.apt:
+        name:
+          - prometheus
+          - prometheus-alertmanager
+          - grafana
+          - loki
+          - promtail
+        state: present
+        update_cache: false
+
+    - name: "BLOCK M | Copy Observability Stack Configurations"
+      ansible.builtin.copy:
+        src: "{{ app_root }}/src/deploy/observability/{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - { src: "prometheus.yml", dest: "/etc/prometheus/prometheus.yml" }
+        - { src: "alerts.yml", dest: "/etc/prometheus/alerts.yml" }
+        - { src: "alertmanager.yml", dest: "/etc/prometheus/alertmanager.yml" }
+        - { src: "loki.yml", dest: "/etc/loki/config.yml" }
+        - { src: "promtail.yml", dest: "/etc/promtail/config.yml" }
+
+    - name: "BLOCK M | Enable and start FluxPay Alert Router daemon"
+      ansible.builtin.systemd:
+        name: fluxpay-alert-router.service
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    # ==========================================================================
+    # BLOCK G — VERIFICATION & THE RUNBOOK-AS-TASK CARD
+    # ==========================================================================
+    - name: "BLOCK G | Validate Nginx syntax"
+      ansible.builtin.command:
+        cmd: nginx -t
+      changed_when: false
+
+    - name: "BLOCK G | Verify firewall and core directories exist"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ app_root }}"
+        - "{{ run_root }}"
+        - "{{ etc_root }}/env.template"
+      register: dir_stats
+
+    - name: "BLOCK G | Assert required paths are present"
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+      loop: "{{ dir_stats.results }}"
+
+    - name: "BLOCK G | DISPLAY OPERATOR BOOTSTRAP CHECKLIST (RUNBOOK-AS-TASK)"
+      # THE RUNBOOK IS THE LAST TASK:
+      # The server is fully hardened and capacity is provisioned.
+      # Operator must populate Doppler secrets, render /etc/fluxpay/env, and run deploy.sh.
+      ansible.builtin.debug:
+        msg:
+          - "=================================================================="
+          - "FLUXPAY APPLIANCE PROVISIONING COMPLETE — CAPACITY READY"
+          - "=================================================================="
+          - ""
+          - "STEP 1: Populate Doppler Secrets (Pipe-Not-Possession Law):"
+          - "  doppler secrets set FLX_PG_PASSWORD='<generate_with_openssl_rand_hex_32>'"
+          - "  doppler secrets set FLX_VAULT_MASTER_KEY='$(openssl rand -base64 32)'"
+          - "  doppler secrets set FLX_WEBHOOK_SIGNING_KEY='$(openssl rand -hex 32)'"
+          - "  doppler secrets set FLX_DASHBOARD_SECRET='$(openssl rand -hex 32)'"
+          - ""
+          - "STEP 2: Synchronize Postgres Role Password with Doppler Value:"
+          - "  sudo -u postgres psql -c \"ALTER ROLE fluxpay_app WITH PASSWORD '<doppler_pg_password>';\""
+          - ""
+          - "STEP 3: Render Production Environment Contract to /etc/fluxpay/env:"
+          - "  sudo doppler secrets download --no-file --format env > /etc/fluxpay/env"
+          - "  sudo chown root:fluxpay /etc/fluxpay/env && sudo chmod 0640 /etc/fluxpay/env"
+          - ""
+          - "STEP 4: Trigger the First Production Release (Human Gate):"
+          - "  cd {{ app_root }}/src"
+          - "  ./deploy/deploy.sh --i-know-main-is-green"
+          - ""
+          - "STEP 5: Validate Socket Health and Liveness:"
+          - "  curl -fsS http://localhost/healthz"
+          - "=================================================================="
+
+  # ----------------------------------------------------------------------------
+  # HANDLERS — IDEMPOTENT NOTIFICATION TARGETS
+  # ----------------------------------------------------------------------------
+  handlers:
+    - name: restart systemd-journald
+      ansible.builtin.systemd:
+        name: systemd-journald
+        state: restarted
+
+    - name: restart ssh
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted
+
+    - name: restart postgresql
+      ansible.builtin.systemd:
+        name: "postgresql@{{ postgresql_version }}-main"
+        state: restarted
+
+    - name: reload nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded

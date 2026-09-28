@@ -1,0 +1,77 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Payment Execution Rate by Result",
+      "description": "Payment throughput per second categorized by outcome (settled, held, rejected, failed). Query: sum(rate(flx_payments_total[5m])) by (result)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "expr": "sum(rate(flx_payments_total[5m])) by (result)",
+          "legendFormat": "{{result}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Cumulative Settled Payments",
+      "description": "Total count of successfully settled transactions since process boot. Query: sum(flx_payments_total{result=\"settled\"})",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "expr": "sum(flx_payments_total{result=\"settled\"})",
+          "legendFormat": "Settled Count"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Idempotency Tier Resolution",
+      "description": "Rate of idempotency evaluations by resolution tier (fastpath_replay, db_replay, conflict). Query: sum(rate(flx_idempotency_total[5m])) by (tier)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "expr": "sum(rate(flx_idempotency_total[5m])) by (tier)",
+          "legendFormat": "{{tier}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Ledger Optimistic Concurrency Control Retries",
+      "description": "Frequency of OCC retries in ledger account balance updates. Query: rate(flx_ledger_occ_retries_total[5m])",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "expr": "rate(flx_ledger_occ_retries_total[5m])",
+          "legendFormat": "OCC Retries / sec"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["fluxpay", "money", "ledger"],
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "FluxPay — Money Path",
+  "uid": "flx-money-path",
+  "version": 1
+}

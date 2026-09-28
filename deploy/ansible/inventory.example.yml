@@ -1,0 +1,44 @@
+---
+# ==============================================================================
+# FluxPay Production Ansible Inventory (Example)
+#
+# PRIVILEGE-DROP ARCHITECTURE & BOOTSTRAP FLOW:
+# ---------------------------------------------
+# 1. Day-0 (Initial Bootstrap):
+#    A fresh cloud VPS only has the root account active with SSH key authentication.
+#    Run the playbook as root to provision the system users, deploy operator SSH keys,
+#    configure passwordless sudo for the audited admin user, and lock down sshd:
+#
+#        ansible-playbook -i inventory.example.yml playbook.yml \
+#            -u root \
+#            --extra-vars "doppler_token=dp.st.prod.XXXX"
+#
+# 2. Day-1+ (Steady-State Operations):
+#    Once 'fluxpay-admin' exists with sudo rights and PermitRootLogin is set to
+#    'prohibit-password' with PasswordAuthentication disabled, switch ansible_user
+#    to 'fluxpay-admin'. All subsequent runs MUST execute with privilege dropping:
+#
+#        ansible-playbook -i inventory.example.yml playbook.yml \
+#            --become \
+#            --extra-vars "doppler_token=dp.st.prod.XXXX"
+#
+# WHY: "Root-forever" is the classic operational drift trap. Operating as root masks
+# permission bugs, prevents proper sudo audit logging, and leaves servers vulnerable
+# to destructive administrative accidents. The playbook accommodates both states
+# idempotently.
+# ==============================================================================
+all:
+  hosts:
+    fluxpay_prod:
+      # Target server public IPv4 / IPv6 address or FQDN
+      ansible_host: 203.0.113.10
+
+      # Initial bootstrap: connect as root
+      ansible_user: root
+
+      # Post-bootstrap: uncomment to drop privileges and use dedicated operator account
+      # ansible_user: fluxpay-admin
+      # ansible_become: true
+
+      # Python 3 interpreter path on Ubuntu 24.04 LTS target
+      ansible_python_interpreter: /usr/bin/python3

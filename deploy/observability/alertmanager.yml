@@ -1,0 +1,28 @@
+# Alertmanager configuration for FluxPay (Task 69)
+# Routes alerts to the local SEV1 Alert Router webhook on port 9120.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: "fluxpay-alert-router"
+  group_by: ["severity", "alertname"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    # SEV1: UN-GROUPED IMMEDIATE ESCALATION (zero wait, separate page per incident)
+    - match:
+        severity: "SEV1"
+      receiver: "fluxpay-alert-router"
+      group_by: []
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1h
+
+receivers:
+  - name: "fluxpay-alert-router"
+    webhook_configs:
+      - url: "http://127.0.0.1:9120/alertmanager"
+        send_resolved: true
+        max_alerts: 10

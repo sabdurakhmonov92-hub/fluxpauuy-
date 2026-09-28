@@ -1,0 +1,44 @@
+# Prometheus configuration for FluxPay Production Observability (Task 69)
+# Pull beats push: scrapers query local HTTP metrics endpoints every 15 seconds.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+rule_files:
+  - "alerts.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "127.0.0.1:9093"
+
+scrape_configs:
+  # 1. FluxPay API process metrics (start_http_server port 9110)
+  - job_name: "fluxpay-api"
+    static_configs:
+      - targets: ["127.0.0.1:9110"]
+        labels:
+          role: "api"
+          tier: "gateway"
+
+  # 2. FluxPay background workers (ports 9111..9113)
+  - job_name: "fluxpay-workers"
+    static_configs:
+      - targets:
+          - "127.0.0.1:9111"
+          - "127.0.0.1:9112"
+          - "127.0.0.1:9113"
+        labels:
+          role: "worker"
+          tier: "processing"
+
+  # 3. FluxPay SEV1 Alert Router & Dead-Man Switch Heartbeat Bridge (port 9120)
+  - job_name: "fluxpay-alert-router"
+    static_configs:
+      - targets: ["127.0.0.1:9120"]
+        labels:
+          role: "alert-router"
+          tier: "telemetry"

@@ -1,0 +1,117 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "SHA-256 Hash Chain Integrity Badge",
+      "description": "Cryptographic chain status (1=OK, 0=CHAIN BROKEN). Red badge indicates emergency halt. Query: flx_validator_ok{worker=\"hash_validator\"}",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "CHAIN BROKEN", "color": "red"},
+                "1": {"text": "CHAIN OK", "color": "green"}
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "expr": "flx_validator_ok{worker=\"hash_validator\"}",
+          "legendFormat": "Chain Status"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Daily Reconciliation Health Badge",
+      "description": "Financial reconciliation status (1=BALANCED, 0=MISMATCH DETECTED). Query: flx_validator_ok{worker=\"reconciliation\"}",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "MISMATCH", "color": "red"},
+                "1": {"text": "BALANCED", "color": "green"}
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "expr": "flx_validator_ok{worker=\"reconciliation\"}",
+          "legendFormat": "Reconciliation Status"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Hash Validator Dead-Man Switch Age (Seconds)",
+      "description": "Seconds since last verified hash-validator run. > 7200 triggers SEV1. Query: time() - flx_worker_last_success_timestamp{worker=\"hash_validator\"}",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "expr": "time() - flx_worker_last_success_timestamp{worker=\"hash_validator\"}",
+          "legendFormat": "Validator Age (s)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Reconciliation Audit Age (Hours)",
+      "description": "Hours since last completed daily reconciliation audit. > 26h triggers SEV1. Query: (time() - flx_worker_last_success_timestamp{worker=\"reconciliation\"}) / 3600",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "Prometheus"},
+          "expr": "(time() - flx_worker_last_success_timestamp{worker=\"reconciliation\"}) / 3600",
+          "legendFormat": "Audit Age (h)"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["fluxpay", "integrity", "audit"],
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "FluxPay — Integrity & Forensic Health",
+  "uid": "flx-integrity-health",
+  "version": 1
+}

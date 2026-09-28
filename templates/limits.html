@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Limits Policy: {{ agent.external_id }} — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="/dashboard/agents">&larr; Back to Agents Overview</a>
+  <h2 class="mt-4">Financial Policy Limits: {{ agent.external_id }}</h2>
+  <p class="card-subtext">Agent ID: {{ agent.id }} · Name: {{ agent.name }}</p>
+</div>
+
+<!-- Current Effective Limits Cards -->
+<div class="grid mb-4">
+  <div class="card" id="card-velocity-limit">
+    <div class="card-header">Velocity Ceiling</div>
+    <div class="card-value">{{ limits.velocity_limit }} tx</div>
+    <div class="card-subtext">Window: {{ limits.velocity_window_s }} seconds</div>
+  </div>
+  <div class="card" id="card-max-single">
+    <div class="card-header">Single Transaction Ceiling</div>
+    <div class="card-value">{{ limits.max_single_tx_minor | format_minor('USDC') }}</div>
+    <div class="card-subtext">{{ limits.max_single_tx_minor }} minor units</div>
+  </div>
+  <div class="card" id="card-daily-cap">
+    <div class="card-header">Daily Cumulative Outflow Cap</div>
+    <div class="card-value">{{ limits.daily_outflow_cap_minor | format_minor('USDC') }}</div>
+    <div class="card-subtext">{{ limits.daily_outflow_cap_minor }} minor units / day</div>
+  </div>
+</div>
+
+<!-- Policy Modification Form -->
+{% if principal and principal.role == 'admin' %}
+<div class="card mb-4" id="edit-limits-card">
+  <div class="card-header">Configure Financial Policy (Task 28 Risk Controls)</div>
+  <form method="POST" action="/dashboard/agents/{{ agent.id }}/limits" hx-post="/dashboard/agents/{{ agent.id }}/limits" hx-target="body">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 16px;">
+      <div>
+        <label for="velocity_limit" class="card-subtext">Velocity Limit (1–100)</label>
+        <input type="number" id="velocity_limit" name="velocity_limit" value="{{ limits.velocity_limit }}" min="1" max="100" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+      <div>
+        <label for="velocity_window_s" class="card-subtext">Velocity Window Seconds (10–3600)</label>
+        <input type="number" id="velocity_window_s" name="velocity_window_s" value="{{ limits.velocity_window_s }}" min="10" max="3600" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+      <div>
+        <label for="max_single_tx_minor" class="card-subtext">Max Single Tx (Minor Units)</label>
+        <input type="number" id="max_single_tx_minor" name="max_single_tx_minor" value="{{ limits.max_single_tx_minor }}" min="1" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+      <div>
+        <label for="daily_outflow_cap_minor" class="card-subtext">Daily Outflow Cap (Minor Units)</label>
+        <input type="number" id="daily_outflow_cap_minor" name="daily_outflow_cap_minor" value="{{ limits.daily_outflow_cap_minor }}" min="1" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+    </div>
+
+    <button type="submit" id="save-limits-btn" class="btn btn-primary">Update Policy Limits (PRG Safe)</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,50 @@
+# Promtail configuration for FluxPay systemd journald log shipping to Loki (Task 69)
+# Ingests flat JSON structlog lines emitted to systemd journal.
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /var/log/fluxpay-promtail-positions.yaml
+
+clients:
+  - url: http://127.0.0.1:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: journal
+    journal:
+      max_age: 12h
+      labels:
+        job: fluxpay-journal
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        target_label: 'unit'
+      - source_labels: ['__journal__hostname']
+        target_label: 'nodename'
+    pipeline_stages:
+      # Step 1: Parse the flat JSON structlog line produced by Task 5 pipeline
+      - json:
+          expressions:
+            timestamp: ts
+            level: level
+            module: module
+            request_id: request_id
+            agent_id: agent_id
+            provider: provider
+            event: event
+
+      # Step 2: Extract timestamp into Loki record timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+
+      # Step 3: Promote low-cardinality fields to stream labels
+      - labels:
+          level:
+          module:
+          provider:
+
+      # Step 4: Retain structured fields for forensic querying
+      - output:
+          source: event

@@ -1,0 +1,15 @@
+[Unit]
+Description=FluxPay Treasury Hot Wallet Monitor Timer (15-Minute Custody Observation)
+Documentation=https://github.com/fluxpay/fluxpay/blob/main/docs/treasury.md#monitor
+
+[Timer]
+# Runs every 15 minutes to inspect hot wallet balance and evaluate thresholds.
+# WHY 15 minutes: timely top-up alerts and surplus sweep proposals without continuous polling.
+OnCalendar=*:0/15
+# WHY Persistent=true: server reboot during a cycle triggers missed run immediately upon boot.
+Persistent=true
+AccuracySec=30s
+Unit=fluxpay-treasury-monitor.service
+
+[Install]
+WantedBy=timers.target

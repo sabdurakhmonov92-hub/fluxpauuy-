@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% block title %}FluxPay Dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+  <script src="/static/htmx.min.js"></script>
+  <script src="/static/dashboard.js"></script>
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+  <header class="navbar">
+    <div class="navbar-brand">
+      <a href="/dashboard">FluxPay Admin</a>
+    </div>
+    {% if principal %}
+    <nav class="navbar-nav">
+      <a href="/dashboard/agents">Agents</a>
+      <a href="/dashboard/merchants">Merchants</a>
+      <a href="/dashboard/holds">Holds</a>
+      <a href="/dashboard/kyc">KYC</a>
+      <a href="/dashboard/audit">Audit</a>
+      {% if principal.role == 'admin' %}
+      <a href="/dashboard/treasury">Treasury</a>
+      {% endif %}
+    </nav>
+    <div class="navbar-user">
+      <span class="user-email">{{ principal.email }}</span>
+      <span class="badge badge-{{ principal.role }}">{{ principal.role }}</span>
+      <a href="/dashboard/logout" class="btn">Logout</a>
+    </div>
+    {% endif %}
+  </header>
+
+  <main class="container">
+    {% block error_banner %}
+    {% if error_message %}
+    <div class="card card-danger mb-4">
+      <span class="error-text">{{ error_message }}</span>
+    </div>
+    {% endif %}
+    {% endblock %}
+
+    {% block content %}
+    {% endblock %}
+  </main>
+</body>
+</html>

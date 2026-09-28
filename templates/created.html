@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}One-Time Secret Emission — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  {% if kind == 'agent' %}
+  <a href="/dashboard/agents">&larr; Back to Agents Overview</a>
+  <h2 class="mt-4">Agent Provisioned: {{ external_id }}</h2>
+  <p class="card-subtext">Agent ID: {{ agent_id }} · Name: {{ name }}</p>
+  {% else %}
+  <a href="/dashboard/merchants/{{ merchant.id }}/webhooks">&larr; Back to Webhooks</a>
+  <h2 class="mt-4">Webhook Endpoint Created</h2>
+  <p class="card-subtext">Endpoint ID: {{ endpoint_id }} · Destination: {{ url }}</p>
+  {% endif %}
+</div>
+
+<!-- Custody Warning Banner -->
+<div class="card card-danger mb-4" id="secret-warning-banner" style="border-left: 4px solid var(--danger); background: rgba(218, 54, 51, 0.1);">
+  <div style="font-weight: 600; color: var(--danger-text); margin-bottom: 4px;">
+    ⚠️ ONE-TIME SECRET CUSTODY CONTRACT / BIR MARTALIK MAXFIY KALIT
+  </div>
+  <p style="color: var(--text-primary); font-size: 13px; line-height: 1.6;">
+    Bu secret <strong>FAQAT shu ekranda</strong> ko'rsatiladi. Sahifa yopilsa yoki yangilansa — uni qayta ko'rsatib bo'lmaydi.<br>
+    This secret is displayed <strong>EXACTLY ONCE</strong>. It is encrypted in database vault envelopes and never stored in plaintext on the server.
+    Copy and custody this secret immediately into your secure key management vault.
+  </p>
+</div>
+
+<!-- Secret Display Container -->
+<div class="card mb-4" id="secret-display-card">
+  <div class="card-header">Plaintext Signing Secret</div>
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--bg-primary); padding: 14px 18px; border: 1px solid var(--border-color); border-radius: 6px; margin: 12px 0;">
+    <code id="one-time-secret" style="font-family: var(--font-mono); font-size: 16px; color: var(--accent); word-break: break-all;">{{ secret }}</code>
+    <button type="button" id="copy-secret-btn" class="btn btn-primary" data-copy-target="one-time-secret" style="white-space: nowrap;">
+      Copy Secret
+    </button>
+  </div>
+  <div class="card-subtext">
+    Algorithm: HMAC-SHA256 (256-bit entropy) · Format: 64-hex string
+  </div>
+</div>
+
+<div class="mb-4">
+  {% if kind == 'agent' %}
+  <a href="/dashboard/agents/{{ agent_id }}" class="btn">Proceed to Agent Ledger</a>
+  {% else %}
+  <a href="/dashboard/merchants/{{ merchant.id }}/webhooks" class="btn">Return to Webhook Endpoints</a>
+  {% endif %}
+</div>
+{% endblock %}

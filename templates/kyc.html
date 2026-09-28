@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Merchant KYC Queue — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h2>Compliance &amp; KYC Verification Queue</h2>
+  <p class="card-subtext">Pending merchant identity reviews. The provider recommends; the platform administrator decides (The Authority Law).</p>
+</div>
+
+<div class="table-container mb-4">
+  <table id="kyc-table">
+    <thead>
+      <tr>
+        <th>Request ID</th>
+        <th>Merchant Handle</th>
+        <th>Provider</th>
+        <th>Provider Ref</th>
+        <th>Existing Notes</th>
+        <th>Created At</th>
+        <th>Decision Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for kyc in kyc_requests %}
+      <tr id="kyc-row-{{ kyc.id }}">
+        <td><code>{{ kyc.id }}</code></td>
+        <td><strong>{{ kyc.merchant_handle }}</strong> ({{ kyc.merchant_name }})</td>
+        <td><span class="badge badge-support">{{ kyc.provider }}</span></td>
+        <td><code>{{ kyc.provider_ref or '—' }}</code></td>
+        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ kyc.notes or '—' }}</td>
+        <td>{{ kyc.created_at }}</td>
+        <td>
+          {% if principal and principal.role == 'admin' %}
+          <form method="POST" action="/dashboard/kyc/{{ kyc.id }}/decide" hx-post="/dashboard/kyc/{{ kyc.id }}/decide" hx-target="body" style="display: flex; gap: 6px; align-items: center;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="text" name="notes" placeholder="Notes (optional)" style="width: 140px; padding: 4px 6px; font-size: 11px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+            <button type="submit" name="decision" value="approved" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;">Approve</button>
+            <button type="submit" name="decision" value="rejected" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" hx-confirm="Reject this KYC verification?">Reject</button>
+          </form>
+          {% else %}
+          <span class="card-subtext">Admin Role Required to Decide</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="card-subtext text-center">KYC review queue is clear. No pending requests.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

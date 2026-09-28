@@ -1,0 +1,96 @@
+[Unit]
+Description=FluxPay Worker (%i)
+Documentation=https://github.com/fluxpay/fluxpay/blob/main/docs/architecture.md
+After=network-online.target postgresql.service valkey.service rabbitmq-server.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=fluxpay-worker
+Group=fluxpay
+UMask=0027
+WorkingDirectory=/opt/fluxpay/current
+
+# Subcommand-based invocation: %i is passed as subcommand (fanout or delivery).
+# Clean single entrypoint module (fluxpay.workers.webhook_entrypoints) handling both daemon modes.
+ExecStart=/opt/fluxpay/current/.venv/bin/python -m fluxpay.workers.webhook_entrypoints %i
+
+# EnvironmentFile: Doppler-rendered environment variables (Task 68). NO secrets stored in unit files.
+EnvironmentFile=/etc/fluxpay/env
+Restart=on-failure
+RestartSec=3
+
+# TimeoutStopSec=40: Allows Task 38 workers to finish in-flight delivery batches and clean up before termination.
+TimeoutStopSec=40
+
+# ==============================================================================
+# HARDENING BLOCK (PLATFORM SECURITY ARMOR)
+# Deliberately duplicated per-unit for direct auditability and operational transparency.
+# Operators at 3 AM must see full security posture in a single unit file without indirection.
+# ==============================================================================
+# Prevent process and descendants from gaining new privileges via setuid/setgid binaries.
+NoNewPrivileges=true
+
+# Mount /usr, /boot, and /etc as read-only.
+ProtectSystem=strict
+
+# Whitelist runtime path for inter-process communication if required.
+ReadWritePaths=/run/fluxpay
+
+# Make /home, /root, and /run/user inaccessible to the worker.
+ProtectHome=true
+
+# Provide an isolated, private /tmp and /var/tmp mounted on a private filesystem namespace.
+PrivateTmp=true
+
+# Restrict access to physical hardware devices; provides an empty pseudo /dev.
+PrivateDevices=true
+
+# Protect kernel variables (/proc/sys, /sys) against modification.
+ProtectKernelTunables=true
+
+# Disallow loading or unloading of kernel modules.
+ProtectKernelModules=true
+
+# Disallow modifications to cgroup hierarchies via /sys/fs/cgroup.
+ProtectControlGroups=true
+
+# Prevent service from altering system clock or real-time clock.
+ProtectClock=true
+
+# Prevent service from modifying system hostname or domainname.
+ProtectHostname=true
+
+# Minimal address family allowance: AF_UNIX for local IPC, AF_INET for localhost DB/bus and outbound HTTPS.
+RestrictAddressFamilies=AF_UNIX AF_INET
+
+# Resource quotas preventing runaway memory consumption or thread exhaustion.
+MemoryMax=2G
+TasksMax=256
+LimitNOFILE=65535
+
+# System call whitelist allowing standard service syscalls (asyncio, epoll, network).
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Lock personality to prevent execution domain switching.
+LockPersonality=true
+
+# Restrict namespace creation (IPC, net, pid, user, uts).
+RestrictNamespaces=true
+
+# Restrict real-time scheduling to prevent CPU starvation.
+RestrictRealtime=true
+
+# Hide processes owned by other users from /proc.
+ProtectProc=invisible
+ProcSubset=pid
+
+# Drop all POSIX capabilities.
+CapabilityBoundingSet=
+
+# Network IP policy: none in Phase 1 to permit external webhook delivery to merchant URLs.
+IPAddressDeny=none
+
+[Install]
+WantedBy=multi-user.target

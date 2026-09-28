@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # Python dependencies managed via uv (pip package ecosystem)
+  # Monthly schedule: fintech reproducibility beats freshness; dependency churn is an audit and operational cost.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+
+  # GitHub Actions workflows and actions dependencies
+  # Monthly schedule: fintech reproducibility beats freshness; dependency churn is an audit and operational cost.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5

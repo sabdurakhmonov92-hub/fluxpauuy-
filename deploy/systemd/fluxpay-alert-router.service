@@ -1,0 +1,41 @@
+[Unit]
+Description=FluxPay SEV1 Alert Router and Dead-Man Switch Heartbeat Bridge
+Documentation=https://github.com/fluxpay/fluxpay/blob/main/docs/architecture.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=fluxpay-worker
+Group=fluxpay
+UMask=0027
+WorkingDirectory=/opt/fluxpay/current
+
+ExecStart=/opt/fluxpay/current/.venv/bin/python -m fluxpay.alerts
+
+# EnvironmentFile: Doppler-rendered environment variables (Task 68). NO secrets stored in unit files.
+EnvironmentFile=/etc/fluxpay/env
+Restart=always
+RestartSec=3
+TimeoutStopSec=15
+
+# ==============================================================================
+# HARDENING BLOCK (PLATFORM SECURITY ARMOR — Task 65)
+# Deliberately duplicated per-unit for direct auditability and operational transparency.
+# Operators at 3 AM must see full security posture in a single unit file without indirection.
+# ==============================================================================
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/run/fluxpay
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+MemorySwapMax=0
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

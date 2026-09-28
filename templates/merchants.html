@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Merchants — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h2>Settlement Merchants</h2>
+  <p class="card-subtext">Registered payee business identities and settlement ledger accounts.</p>
+</div>
+
+<!-- Merchant Provisioning Card -->
+{% if principal and principal.role == 'admin' %}
+<div class="card mb-4" id="create-merchant-panel">
+  <div class="card-header">Register New Merchant Payee</div>
+  <form method="POST" action="/dashboard/merchants" hx-post="/dashboard/merchants" hx-target="body">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 12px;">
+      <div>
+        <label for="merchant-external-id" class="card-subtext">External ID Handle</label>
+        <input type="text" id="merchant-external-id" name="external_id" placeholder="e.g. acme_corp" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+      <div>
+        <label for="merchant-name" class="card-subtext">Business Name</label>
+        <input type="text" id="merchant-name" name="name" placeholder="e.g. Acme Corporation" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+      <div>
+        <label for="merchant-currency" class="card-subtext">Settlement Currency</label>
+        <input type="text" id="merchant-currency" name="currency" value="USDC" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+    </div>
+    <button type="submit" id="create-merchant-submit" class="btn btn-primary">Register Merchant</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="table-container mb-4">
+  <table id="merchants-table">
+    <thead>
+      <tr>
+        <th>Handle</th>
+        <th>Business Name</th>
+        <th>Status</th>
+        <th>Created At</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for merchant in merchants %}
+      <tr id="merchant-row-{{ merchant.id }}">
+        <td><strong>{{ merchant.external_id }}</strong></td>
+        <td>{{ merchant.name }}</td>
+        <td>
+          {% if merchant.active %}
+          <span class="badge badge-credit">Active</span>
+          {% else %}
+          <span class="badge badge-debit">Suspended</span>
+          {% endif %}
+        </td>
+        <td>{{ merchant.created_at }}</td>
+        <td style="display: flex; gap: 6px;">
+          <a href="/dashboard/merchants/{{ merchant.id }}/webhooks" class="btn">Webhooks</a>
+          {% if principal and principal.role == 'admin' and merchant.active %}
+          <form method="POST" action="/dashboard/merchants/{{ merchant.external_id }}/suspend" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-danger" hx-post="/dashboard/merchants/{{ merchant.external_id }}/suspend" hx-target="body" hx-confirm="Suspend this merchant entity?">Suspend</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="5" class="card-subtext text-center">No merchants registered yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

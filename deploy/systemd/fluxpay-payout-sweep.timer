@@ -1,0 +1,12 @@
+[Unit]
+Description=FluxPay Treasury Payout Sweep Timer (Hourly Payout Audit)
+Documentation=https://github.com/fluxpay/fluxpay/blob/main/docs/treasury.md#payouts
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+AccuracySec=1m
+Unit=fluxpay-payout-sweep.service
+
+[Install]
+WantedBy=timers.target

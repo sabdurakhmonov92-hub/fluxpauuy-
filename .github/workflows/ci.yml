@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+# Cancel superseded runs to eliminate wasted runner minutes and queue congestion
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: workflow only requires read access to repository contents
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10 # Circuit breaker: prevent hung static analysis jobs from blocking merges
+    steps:
+      # Pinned by immutable full commit SHA to defend against supply-chain tag mutation
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # Pinned by immutable full commit SHA to defend against supply-chain tag mutation
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      # Lockfile is law: --frozen guarantees exact deterministic dependency tree
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint with Ruff
+        run: uv run ruff check src tests
+
+      - name: Check formatting with Ruff
+        run: uv run ruff format --check src tests
+
+      - name: Type check with mypy
+        run: uv run mypy
+
+  tests:
+    name: Test Suite
+    needs: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # Circuit breaker: prevent hung integration tests from blocking merges
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        # Deterministic readiness: pg_isready ensures the database is accepting connections before tests run
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      valkey:
+        image: valkey/valkey:8
+        ports:
+          - 6379:6379
+        # Deterministic readiness: valkey-cli ping prevents race conditions during test startup
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # --- Task 10 edit/append ---
+      rabbitmq:
+        image: rabbitmq:3.13
+        ports:
+          - 5672:5672
+        # Deterministic readiness: money-path integration coverage requires the real broker; same symmetry rule
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      FLX_PG_DSN: postgresql://test:test@localhost:5432/test
+
+    steps:
+      # Pinned by immutable full commit SHA to defend against supply-chain tag mutation
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # Pinned by immutable full commit SHA to defend against supply-chain tag mutation
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      # Lockfile is law: --frozen guarantees exact deterministic dependency tree
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run tests with coverage
+        run: uv run pytest --cov --cov-report=xml
+
+      # Pinned by immutable full commit SHA to defend against supply-chain tag mutation
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+      # --- Task 18 edit/append ---
+      # Block C money core — coverage is a locked gate; raising it requires a senior review, lowering it is forbidden.
+      # Threshold 95 not 100 — WHY: verify_chain's defensive branches (connection-timeout paths,
+      # malformed-range early exits) are integration-hostile; the TWO dead-cleanup paths are
+      # pragma-marked instead of tested-through-artifice. 95 with per-file visibility
+      # (show_missing) keeps honesty without ceremonial tests.
+      - run: uv run coverage json -o coverage.json
+      - run: uv run python scripts/check_coverage.py src/fluxpay/ledger 95
+
+      # --- Task 25 edit ---
+      # Block D security pipeline — locked gate (mirror of the ledger gate rationale; lowering requires senior review).
+      - run: uv run python scripts/check_coverage.py src/fluxpay/gateway 95
+

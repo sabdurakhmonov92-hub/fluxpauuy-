@@ -1,0 +1,148 @@
+# ==============================================================================
+# FluxPay Alert Contract (Task 69)
+# ==============================================================================
+# STRICT CONTRACT RULES:
+# 1. EVERY alert rule MUST define 'severity' label (SEV1, SEV2, or SEV3).
+# 2. EVERY alert rule MUST define 'runbook_url' annotation pointing to docs/runbooks/<name>.md.
+# 3. SEV1 alerts represent platform or integrity halts that page on-call 24/7 immediately.
+
+groups:
+  - name: fluxpay_platform_alerts
+    rules:
+      # --- SEV1: PLATFORM & SYSTEM OUTAGES ---
+      - alert: FluxPayDown
+        expr: up{job=~"fluxpay.*"} == 0
+        for: 2m
+        labels:
+          severity: SEV1
+          tier: platform
+        annotations:
+          summary: "FluxPay service instance {{ $labels.instance }} is DOWN"
+          description: "Service instance {{ $labels.instance }} has been unreachable for more than 2 minutes."
+          runbook_url: docs/runbooks/FluxPayDown.md
+
+      # --- SEV1: DEAD-MAN SWITCH (ABSENCE OF SIGNAL) ---
+      - alert: DeadManSwitchValidator
+        expr: (time() - flx_worker_last_success_timestamp{worker="hash_validator"}) > 7200
+        for: 0m
+        labels:
+          severity: SEV1
+          tier: audit
+        annotations:
+          summary: "Cryptographic hash-chain validator dead-man switch tripped (> 2h silence)"
+          description: "No successful hash-validator run reported in 7200 seconds. A silent validator is a SEV1 incident."
+          runbook_url: docs/runbooks/DeadManSwitchValidator.md
+
+      # --- SEV1: CRYPTOGRAPHIC CHAIN CORRUPTION ---
+      - alert: ChainBroken
+        expr: flx_validator_ok{worker="hash_validator"} == 0
+        for: 0m
+        labels:
+          severity: SEV1
+          tier: ledger
+        annotations:
+          summary: "CRITICAL: SHA-256 ledger hash chain verification FAILED"
+          description: "Cryptographic verification found sequence discontinuity or hash mismatch. Human emergency fix required."
+          runbook_url: docs/runbooks/ChainBroken.md
+
+      # --- SEV1: DAILY RECONCILIATION INTEGRITY ---
+      - alert: ReconciliationMismatch
+        expr: flx_validator_ok{worker="reconciliation"} == 0
+        for: 0m
+        labels:
+          severity: SEV1
+          tier: accounting
+        annotations:
+          summary: "Daily ledger reconciliation detected balance mismatch or non-zero circulating delta"
+          description: "Double-entry balance check, account sum verification, or Redis counter audit failed."
+          runbook_url: docs/runbooks/ReconciliationMismatch.md
+
+      - alert: DeadManSwitchReconciliation
+        expr: (time() - flx_worker_last_success_timestamp{worker="reconciliation"}) > 93600
+        for: 0m
+        labels:
+          severity: SEV1
+          tier: accounting
+        annotations:
+          summary: "Reconciliation worker dead-man switch tripped (> 26h silence)"
+          description: "Daily reconciliation worker has not completed a verified audit within 26 hours."
+          runbook_url: docs/runbooks/DeadManSwitchReconciliation.md
+
+      - alert: DeadManSwitchTreasury
+        expr: (time() - flx_worker_last_success_timestamp{worker="treasury_monitor"}) > 3600
+        for: 0m
+        labels:
+          severity: SEV1
+          tier: treasury
+        annotations:
+          summary: "Treasury monitor dead-man switch tripped (> 1h silence)"
+          description: "Hot wallet treasury monitor has missed 4 consecutive check cycles (1 hour)."
+          runbook_url: docs/runbooks/DeadManSwitchTreasury.md
+
+      # --- SEV2: ELEVATED FAILURE RATES & CAPACITY DEGRADATION ---
+      - alert: MoneyPathErrors
+        expr: rate(flx_payments_total{result="failed"}[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: SEV2
+          tier: money-path
+        annotations:
+          summary: "High failure rate in payment execution pipeline (> 0.1 failed/sec for 10m)"
+          description: "Customer payment transactions are failing at elevated rates."
+          runbook_url: docs/runbooks/MoneyPathErrors.md
+
+      - alert: GateUnavailable
+        expr: rate(flx_gate_total{outcome="unavail"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: SEV2
+          tier: security-gate
+        annotations:
+          summary: "Security admission gate is unavailable (Valkey connection timeouts/errors)"
+          description: "Fail-closed gate is shedding traffic due to Valkey datastore unreachability."
+          runbook_url: docs/runbooks/GateUnavailable.md
+
+      - alert: LedgerOCCStorm
+        expr: rate(flx_ledger_occ_retries_total[5m]) > 20
+        for: 5m
+        labels:
+          severity: SEV2
+          tier: ledger
+        annotations:
+          summary: "High ledger OCC retry contention (> 20 retries/sec for 5m)"
+          description: "Systemic optimistic concurrency contention detected on hot account rows."
+          runbook_url: docs/runbooks/LedgerOCCStorm.md
+
+      - alert: WorkerStuck
+        expr: (time() - flx_worker_last_success_timestamp{worker=~".*webhook.*"}) > 900
+        for: 5m
+        labels:
+          severity: SEV2
+          tier: workers
+        annotations:
+          summary: "Background webhook delivery worker stalled (> 15m since last success)"
+          description: "Webhook worker has made no progress for 15 minutes."
+          runbook_url: docs/runbooks/WorkerStuck.md
+
+      - alert: GatewayHigh5xx
+        expr: rate(flx_http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: SEV2
+          tier: gateway
+        annotations:
+          summary: "Elevated HTTP 5xx error rate on API gateway"
+          description: "Gateway is returning 5xx server errors above threshold."
+          runbook_url: docs/runbooks/GatewayHigh5xx.md
+
+      # --- SEV3: INFORMATIONAL & CIRCUIT-BREAKER PRECURSORS ---
+      - alert: ProviderHealth
+        expr: (rate(flx_provider_calls_total{ok="false"}[10m]) / clamp_min(rate(flx_provider_calls_total[10m]), 0.001)) > 0.3
+        for: 5m
+        labels:
+          severity: SEV3
+          tier: integrations
+        annotations:
+          summary: "External provider error rate elevated (> 30% failure over 10m)"
+          description: "Upstream bank or rail adapter experiencing degradation. Circuit-breaker precursor."
+          runbook_url: docs/runbooks/ProviderHealth.md

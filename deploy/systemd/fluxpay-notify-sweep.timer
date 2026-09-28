@@ -1,0 +1,17 @@
+[Unit]
+Description=FluxPay Notification Sweep Timer (15-Minute Failure Ledger Re-Dispatch)
+Documentation=https://github.com/fluxpay/fluxpay/blob/main/docs/notifications.md#sweep
+
+[Timer]
+# Runs every 15 minutes to re-dispatch failed notification_failures rows.
+# WHY 15 minutes: short enough that missed hold alerts reach ops within one triage cycle,
+# long enough to avoid hammering a degraded Telegram/SendGrid endpoint on repeated failure.
+OnCalendar=*:0/15
+# WHY Persistent=true: a server rebooted during a sweep window must not skip pending rows.
+# Systemd triggers missed timer events immediately upon boot recovery.
+Persistent=true
+AccuracySec=30s
+Unit=fluxpay-notify-sweep.service
+
+[Install]
+WantedBy=timers.target

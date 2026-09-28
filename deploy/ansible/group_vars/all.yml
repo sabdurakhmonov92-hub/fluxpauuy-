@@ -1,0 +1,83 @@
+---
+# ==============================================================================
+# FluxPay Group Variables: Declared Production Interface (Task 67)
+#
+# THE SECRETS LAW (PIPE-NOT-POSSESSION):
+# ---------------------------------------
+# This file NEVER contains passwords, API tokens, or master encryption keys.
+# The Doppler service token value enters ONLY via runtime `--extra-vars "doppler_token=..."`.
+# All production application secrets flow directly through Doppler to /etc/fluxpay/env.
+# Playbook vars hold only configuration names, structural boundaries, and public keys.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. DOMAIN & TLS TERMINATION
+# ------------------------------------------------------------------------------
+domain: "api.fluxpay.com"
+letsencrypt_email: "ops@fluxpay.com"
+
+# Two-Phase Certbot Flow: Set true on initial spin-up to verify DNS/HTTP challenges
+# without risking Let's Encrypt rate limits (5 failed orders per hour per domain).
+# Flip to false once staging issuance succeeds.
+letsencrypt_staging: false
+
+# ------------------------------------------------------------------------------
+# 2. OPERATOR ACCESS & HUMAN MOMENT
+# ------------------------------------------------------------------------------
+# The ONE human moment: Paste the authorized public SSH keys for infrastructure operators.
+# Password authentication is permanently disabled across the server.
+admin_ssh_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLEOPERATORK01FLUXPAYPRODOPERATORKEY01 fluxpay-operator-primary"
+
+# ------------------------------------------------------------------------------
+# 3. SYSTEM USERS & REPRODUCIBLE PATHS CONTRACT (Blueprint §11 & Task 65)
+# ------------------------------------------------------------------------------
+admin_user: "fluxpay-admin"
+app_group: "fluxpay"
+api_user: "fluxpay-api"
+worker_user: "fluxpay-worker"
+
+app_root: "/opt/fluxpay"
+run_root: "/run/fluxpay"
+etc_root: "/etc/fluxpay"
+
+# ------------------------------------------------------------------------------
+# 4. SOURCE REPOSITORY & DEPLOYED TRUTH
+# ------------------------------------------------------------------------------
+git_repo_url: "https://github.com/fluxpay/fluxpay.git"
+git_ref: "main"
+
+# ------------------------------------------------------------------------------
+# 5. RUNTIME VERSIONS (AUDITED & PINNED)
+# ------------------------------------------------------------------------------
+# PGDG 17 required: Ubuntu 24.04 ships 16 by default; pinned to official PGDG archive
+postgresql_version: "17"
+uv_version: "0.5.26"
+
+# Operational environment tag: development | staging | production
+fluxpay_env: "production"
+
+# ------------------------------------------------------------------------------
+# 6. DOPPLER SECRETS PIPE
+# ------------------------------------------------------------------------------
+# Only the variable NAME is declared here. The token VALUE is passed exclusively
+# via `--extra-vars "doppler_token=dp.st...."` at provisioning runtime.
+doppler_service_token_name: "DOPPLER_TOKEN"
+doppler_token: "{{ doppler_token | default('') }}"
+
+# ------------------------------------------------------------------------------
+# 7. RAIL CUSTODY & TREASURY ADDRESSES (Task 44 Placeholder Law)
+# ------------------------------------------------------------------------------
+# In production, the playbook ABORTS immediately if either address is empty or
+# matches the zero-address placeholder (0x0000000000000000000000000000000000000000).
+# Operator must specify real EVM hot wallet and Gnosis Safe 2-of-3 cold vault addresses.
+wallet_hot_address: ""
+wallet_cold_address: ""
+
+# ------------------------------------------------------------------------------
+# 8. FIREWALL & NETWORK PORTS (Task 65 Nginx Edge Alignment)
+# ------------------------------------------------------------------------------
+firewall_ports:
+  mgmt_ssh: 22
+  https: 443
+  http: 80  # Port 80 strictly for ACME challenge & HTTP->HTTPS 301 redirect

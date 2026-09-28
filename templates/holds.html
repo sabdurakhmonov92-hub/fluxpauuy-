@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Holds — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h2>HITL Quarantine Queue (Holds)</h2>
+  <p class="card-subtext">Payments held by financial risk policies (Task 28). Requires 2-person human authorization (Task 42) before settlement.</p>
+</div>
+
+<div class="table-container mb-4">
+  <table id="holds-table">
+    <thead>
+      <tr>
+        <th>Hold ID</th>
+        <th>Agent Handle</th>
+        <th>Idempotency Key</th>
+        <th>Amount</th>
+        <th>Reason</th>
+        <th>Status</th>
+        <th>Governance Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for hold in holds %}
+      <tr id="hold-row-{{ hold.hold_id }}">
+        <td><code>{{ hold.hold_id }}</code></td>
+        <td><strong>{{ hold.agent_external_id }}</strong></td>
+        <td><code style="font-size: 11px;">{{ hold.idem_key }}</code></td>
+        <td>{{ hold.amount_minor | format_minor(hold.currency) }}</td>
+        <td><span class="badge badge-support">{{ hold.reason }}</span></td>
+        <td><span class="badge badge-credit">{{ hold.status }}</span></td>
+        <td>
+          {% if principal and principal.role == 'admin' %}
+          <div style="display: flex; gap: 6px;">
+            <form method="POST" action="/dashboard/holds/{{ hold.hold_id }}/vote" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="vote" value="approve">
+              <button type="submit" class="btn btn-primary" hx-post="/dashboard/holds/{{ hold.hold_id }}/vote" hx-target="#hold-row-{{ hold.hold_id }}" hx-swap="outerHTML">Approve</button>
+            </form>
+            <form method="POST" action="/dashboard/holds/{{ hold.hold_id }}/vote" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="vote" value="reject">
+              <button type="submit" class="btn btn-danger" hx-post="/dashboard/holds/{{ hold.hold_id }}/vote" hx-target="#hold-row-{{ hold.hold_id }}" hx-swap="outerHTML" hx-confirm="Reject this payment hold? This action is terminal.">Reject</button>
+            </form>
+          </div>
+          {% else %}
+          <span class="card-subtext">Admin Role Required to Vote</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="card-subtext text-center">Quarantine queue is empty. No payments currently held.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

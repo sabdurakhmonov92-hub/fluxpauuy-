@@ -1,0 +1,16 @@
+[Unit]
+Description=FluxPay Hash-Chain Integrity Hourly Audit Timer
+Documentation=https://github.com/fluxpay/fluxpay/blob/main/docs/ledger.md#verification
+
+[Timer]
+OnCalendar=hourly
+# WHY Persistent=true: A server rebooted at 02:59 must not skip the 03:00 audit.
+# Systemd triggers missed timer events immediately upon boot recovery.
+Persistent=true
+# WHY RandomizedDelaySec=300: Thundering-herd politeness across multi-instance deployments.
+RandomizedDelaySec=300
+AccuracySec=1m
+Unit=fluxpay-hash-validator.service
+
+[Install]
+WantedBy=timers.target

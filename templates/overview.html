@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}{{ agent.external_id }} — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="/dashboard/agents">&larr; Back to Agents</a>
+  <h2 class="mt-4">{{ agent.name or agent.external_id }}</h2>
+  <p class="card-subtext">Agent ID: {{ agent.id }} · External ID: {{ agent.external_id }}</p>
+</div>
+
+<!-- Balance Cards -->
+<div class="grid">
+  <div class="card" id="balance-card">
+    <div class="card-header">Available Balance</div>
+    <div class="card-value" id="balance-value">{{ balance_formatted }} {{ balance.currency }}</div>
+    <div class="card-subtext">
+      Account: {{ account_ref.account_id }}<br>
+      OCC Version: {{ balance.version }}
+    </div>
+  </div>
+
+  <div class="card" id="audit-status-card">
+    <div class="card-header">Ledger Integrity Proof</div>
+    <div class="mt-4 mb-4">
+      {% if statement.chain_verified %}
+      <span class="badge chain-ok" id="chain-badge">✓ Chain Verified</span>
+      {% else %}
+      <span class="badge chain-tampered" id="chain-badge">✗ Tamper Detected</span>
+      {% endif %}
+    </div>
+    <div class="card-subtext">
+      First Hash: {{ statement.first_entry_hash[:16] if statement.first_entry_hash else 'genesis' }}...<br>
+      Last Hash: {{ statement.last_entry_hash[:16] if statement.last_entry_hash else 'genesis' }}...
+    </div>
+  </div>
+</div>
+
+<!-- Statement Container -->
+<div id="statement-container" class="card mb-4">
+  <div class="statement-header mb-4">
+    <div>
+      <h3 class="statement-title">Account Statement</h3>
+      <p class="card-subtext">Window: Seq {{ statement.from_seq }} to {{ statement.to_seq }} · Opening: {{ opening_balance_formatted }} · Closing: {{ closing_balance_formatted }}</p>
+    </div>
+    <div>
+      {% if statement.chain_verified %}
+      <span class="badge chain-ok">Cryptographically Anchored</span>
+      {% else %}
+      <span class="badge chain-tampered">Hash Chain Broken</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table id="statement-table">
+      <thead>
+        <tr>
+          <th>Seq</th>
+          <th>Timestamp</th>
+          <th>Direction</th>
+          <th>Amount</th>
+          <th>Balance After</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in statement.entries %}
+        <tr>
+          <td>#{{ entry.seq }}</td>
+          <td>{{ entry.created_at }}</td>
+          <td>
+            <span class="badge badge-{{ entry.direction.value if entry.direction.value is defined else entry.direction }}">
+              {{ entry.direction.value if entry.direction.value is defined else entry.direction }}
+            </span>
+          </td>
+          <td>{{ entry.amount | format_minor(entry.currency) }} {{ entry.currency }}</td>
+          <td>{{ entry.balance_after | format_minor(entry.currency) }} {{ entry.currency }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="card-subtext text-center">No transactions in this sequence window.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <div>
+      {% if has_older %}
+      <a id="older-link"
+         href="/dashboard/agents/{{ agent.id }}?before_seq={{ statement.from_seq }}"
+         hx-get="/dashboard/agents/{{ agent.id }}?before_seq={{ statement.from_seq }}"
+         hx-target="#statement-container"
+         hx-swap="outerHTML"
+         class="btn">
+        &larr; Older Entries
+      </a>
+      {% endif %}
+    </div>
+    <div>
+      {% if before_seq %}
+      <a href="/dashboard/agents/{{ agent.id }}"
+         hx-get="/dashboard/agents/{{ agent.id }}"
+         hx-target="#statement-container"
+         hx-swap="outerHTML"
+         class="btn">
+        Latest Entries &rarr;
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

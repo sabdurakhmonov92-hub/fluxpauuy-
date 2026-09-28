@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Webhooks: {{ merchant.external_id }} — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="/dashboard/merchants">&larr; Back to Merchants Overview</a>
+  <h2 class="mt-4">Webhook Destinations: {{ merchant.name }}</h2>
+  <p class="card-subtext">Merchant ID: {{ merchant.id }} · External ID: {{ merchant.external_id }}</p>
+</div>
+
+<!-- Webhook Endpoint Provisioning Card -->
+{% if principal and principal.role == 'admin' %}
+<div class="card mb-4" id="create-webhook-panel">
+  <div class="card-header">Register New Webhook Destination Endpoint (HTTPS Only)</div>
+  <form method="POST" action="/dashboard/merchants/{{ merchant.id }}/webhooks" hx-post="/dashboard/merchants/{{ merchant.id }}/webhooks" hx-target="body">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div style="margin-bottom: 12px;">
+      <label for="webhook-url" class="card-subtext">HTTPS Endpoint URL</label>
+      <input type="url" id="webhook-url" name="url" placeholder="https://api.merchant.com/v1/fluxpay/webhooks" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      <p class="card-subtext" style="margin-top: 4px;">Strict Task 38 law: Only secure HTTPS endpoints are permitted. Plain HTTP is rejected at database constraint level.</p>
+    </div>
+    <button type="submit" id="create-webhook-submit" class="btn btn-primary">Register Endpoint &amp; Generate Secret</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="table-container mb-4">
+  <table id="webhooks-table">
+    <thead>
+      <tr>
+        <th>Endpoint ID</th>
+        <th>Destination URL</th>
+        <th>Status</th>
+        <th>Created At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ep in endpoints %}
+      <tr id="webhook-row-{{ ep.id }}">
+        <td><code>{{ ep.id }}</code></td>
+        <td><strong>{{ ep.url }}</strong></td>
+        <td>
+          {% if ep.active %}
+          <span class="badge badge-credit">Active</span>
+          {% else %}
+          <span class="badge badge-debit">Inactive</span>
+          {% endif %}
+        </td>
+        <td>{{ ep.created_at }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4" class="card-subtext text-center">No webhook endpoints configured for this merchant.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

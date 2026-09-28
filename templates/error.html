@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Error {{ status_code }} — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="card error-box">
+  <div class="error-status">{{ status_code }}</div>
+  <h2 class="mb-4">{{ title }}</h2>
+  <p class="error-text mb-4">{{ message }}</p>
+  {% if request_id %}
+  <p class="request-id">Request ID: {{ request_id }}</p>
+  {% endif %}
+  <div class="mt-4">
+    <a href="/dashboard" class="btn">Return to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

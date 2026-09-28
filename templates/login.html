@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Login — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="card error-box">
+  <h2 class="mb-4">FluxPay Operator Portal</h2>
+  <p class="card-subtext mb-4">
+    Administrative authentication is brokered by Keycloak OIDC with PKCE and hardware-backed MFA enforcement.
+  </p>
+  <a href="/dashboard/login" class="btn btn-primary">Sign in with Keycloak OIDC</a>
+</div>
+{% endblock %}

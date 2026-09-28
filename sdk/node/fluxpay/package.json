@@ -1,0 +1,32 @@
+{
+  "name": "fluxpay",
+  "version": "0.1.0",
+  "description": "FluxPay SDK for Node.js and TypeScript — Payment infrastructure for AI agents",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./signing": {
+      "import": "./dist/signing.js",
+      "types": "./dist/signing.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test tests/*.test.mjs",
+    "kat": "node tests/run_kat.mjs"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

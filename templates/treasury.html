@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Institutional Treasury — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h2>Institutional Treasury &amp; Custody Reserves</h2>
+  <p class="card-subtext">Base L2 USDC Hot Wallet &amp; Institutional Cold Storage Reserve Balances. Governed under the Task 45 Institutional Separation of Concerns Law.</p>
+</div>
+
+<!-- Operator Runbook CLI Warning (Read-Only Law) -->
+<div class="card mb-4" id="treasury-cli-runbook" style="border-left: 4px solid var(--accent); background: rgba(88, 166, 255, 0.08);">
+  <div style="font-weight: 600; color: var(--accent); margin-bottom: 6px;">
+    ℹ️ OPERATOR RUNBOOK: READ-ONLY OBSERVATION SURFACE (TASK 45 GOVERNANCE LAW)
+  </div>
+  <p style="font-size: 13px; line-height: 1.6; margin-bottom: 8px;">
+    The dashboard treasury view is strictly read-only. Web browsers lack hardware HSM and air-gapped signing integration.
+    Per Task 45 governance policy, authorization of cold vault payouts requires multi-signature operator consensus
+    executed exclusively via the privileged command-line interface.
+  </p>
+  <div style="background: var(--bg-primary); padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
+    # Operator Consensus Command (2-Man Quorum Required):<br>
+    <strong>vote via CLI: python -m fluxpay.treasury.cli vote --payout-id &lt;id&gt; --vote approve</strong><br><br>
+    # Live Custody Snapshot Verification:<br>
+    <strong>python -m fluxpay.treasury.cli snapshot --rail base_usdc</strong>
+  </div>
+</div>
+
+<!-- Custody Balances & Reconciliation Snapshot -->
+<div class="grid mb-4">
+  <div class="card" id="card-hot-wallet">
+    <div class="card-header">Hot Wallet (Base L2)</div>
+    <div class="card-value">
+      {% if snapshot %}
+        {{ snapshot.hot_truth | format_minor('USDC') }}
+      {% elif wallet_state %}
+        {{ wallet_state.hot_balance_minor | format_minor('USDC') }}
+      {% else %}
+        0.00 USDC
+      {% endif %}
+    </div>
+    <div class="card-subtext">
+      {% if snapshot %}
+        Cache: {{ snapshot.hot_cache }} · Truth: {{ snapshot.hot_truth }} · Drift: {{ snapshot.hot_drift }}
+      {% elif wallet_state %}
+        Sync Status: {{ wallet_state.sync_status }}
+      {% else %}
+        Not provisioned
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card" id="card-cold-vault">
+    <div class="card-header">Institutional Cold Vault</div>
+    <div class="card-value">
+      {% if snapshot %}
+        {{ snapshot.cold_truth | format_minor('USDC') }}
+      {% elif wallet_state %}
+        {{ wallet_state.cold_balance_minor | format_minor('USDC') }}
+      {% else %}
+        0.00 USDC
+      {% endif %}
+    </div>
+    <div class="card-subtext">
+      {% if snapshot %}
+        Cache: {{ snapshot.cold_cache }} · Truth: {{ snapshot.cold_truth }} · Drift: {{ snapshot.cold_drift }}
+      {% elif wallet_state %}
+        Sync Status: {{ wallet_state.sync_status }}
+      {% else %}
+        Not provisioned
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card" id="card-inflight">
+    <div class="card-header">In-Flight Payout Total</div>
+    <div class="card-value">
+      {% if snapshot %}
+        {{ snapshot.in_flight_total | format_minor('USDC') }}
+      {% else %}
+        0.00 USDC
+      {% endif %}
+    </div>
+    <div class="card-subtext">
+      Active pipeline items awaiting threshold or on-chain confirmation
+    </div>
+  </div>
+</div>
+
+<!-- Open Payouts Work Queue -->
+<div class="mb-4">
+  <h3>Open Cold Payout Requests</h3>
+  <p class="card-subtext">Payout operations awaiting 2-man authorization or on-chain execution receipts.</p>
+</div>
+
+<div class="table-container mb-4">
+  <table id="treasury-payouts-table">
+    <thead>
+      <tr>
+        <th>Payout ID</th>
+        <th>Rail</th>
+        <th>Amount</th>
+        <th>Destination Address</th>
+        <th>Status</th>
+        <th>Votes</th>
+        <th>Created At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in payouts %}
+      <tr>
+        <td><code>{{ p.payout_id }}</code></td>
+        <td>{{ p.rail }}</td>
+        <td>{{ p.amount_minor | format_minor(p.currency) }}</td>
+        <td><code>{{ p.to_address }}</code></td>
+        <td><span class="badge badge-support">{{ p.status }}</span></td>
+        <td>{{ p.votes_for }} approve / {{ p.votes_against }} reject</td>
+        <td>{{ p.created_at }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="card-subtext text-center">No open cold payouts in queue.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

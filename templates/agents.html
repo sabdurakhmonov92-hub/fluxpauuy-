@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Agents — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h2>Autonomous Agents</h2>
+  <p class="card-subtext">Registered payment-capable machine identities under administrative supervision.</p>
+</div>
+
+<!-- Agent Provisioning Card -->
+{% if principal and principal.role == 'admin' %}
+<div class="card mb-4" id="create-agent-panel">
+  <div class="card-header">Provision New Autonomous Agent</div>
+  <form method="POST" action="/dashboard/agents" hx-post="/dashboard/agents" hx-target="body">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 12px;">
+      <div>
+        <label for="agent-external-id" class="card-subtext">External ID</label>
+        <input type="text" id="agent-external-id" name="external_id" placeholder="e.g. agent_alpha_1" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+      <div>
+        <label for="agent-name" class="card-subtext">Display Name</label>
+        <input type="text" id="agent-name" name="name" placeholder="e.g. Settlement Worker" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+      <div>
+        <label for="agent-currency" class="card-subtext">Currency</label>
+        <input type="text" id="agent-currency" name="currency" value="USDC" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+      <div>
+        <label for="agent-rate-limit" class="card-subtext">Rate Limit Max</label>
+        <input type="number" id="agent-rate-limit" name="rate_limit_max" value="100" min="1" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+      <div>
+        <label for="agent-daily-quota" class="card-subtext">Daily Quota Max</label>
+        <input type="number" id="agent-daily-quota" name="daily_quota_max" value="10000" min="1" required style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+      </div>
+    </div>
+    <button type="submit" id="create-agent-submit" class="btn btn-primary">Provision Agent &amp; Generate Secret</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="table-container mb-4">
+  <table id="agents-table">
+    <thead>
+      <tr>
+        <th>External ID</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Created At</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for agent in agents %}
+      <tr id="agent-row-{{ agent.id }}">
+        <td><strong>{{ agent.external_id }}</strong></td>
+        <td>{{ agent.name }}</td>
+        <td>
+          {% if agent.active %}
+          <span class="badge badge-credit">Active</span>
+          {% else %}
+          <span class="badge badge-debit">Suspended</span>
+          {% endif %}
+        </td>
+        <td>{{ agent.created_at }}</td>
+        <td style="display: flex; gap: 6px;">
+          <a href="/dashboard/agents/{{ agent.id }}" class="btn">View Ledger</a>
+          <a href="/dashboard/agents/{{ agent.id }}/limits" class="btn">Limits</a>
+          {% if principal and principal.role == 'admin' %}
+            {% if agent.active %}
+            <form method="POST" action="/dashboard/agents/{{ agent.id }}/suspend" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-danger" hx-post="/dashboard/agents/{{ agent.id }}/suspend" hx-target="body" hx-confirm="Suspend this autonomous agent?">Suspend</button>
+            </form>
+            {% else %}
+            <form method="POST" action="/dashboard/agents/{{ agent.id }}/activate" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-primary" hx-post="/dashboard/agents/{{ agent.id }}/activate" hx-target="body">Activate</button>
+            </form>
+            {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="5" class="card-subtext text-center">No agents registered yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

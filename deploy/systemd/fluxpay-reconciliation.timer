@@ -1,0 +1,17 @@
+[Unit]
+Description=FluxPay Reconciliation Worker Daily Audit Timer
+Documentation=https://github.com/fluxpay/fluxpay/blob/main/docs/ledger.md#reconciliation
+
+[Timer]
+# Runs daily at 04:00 UTC — after the hourly hash-validator grid has verified the chain
+OnCalendar=*-*-* 04:00:00 UTC
+# WHY Persistent=true: A server rebooted at 03:59 must not skip the daily truth audit.
+# Systemd triggers missed timer events immediately upon boot recovery.
+Persistent=true
+# WHY RandomizedDelaySec=600: Thundering-herd politeness across multi-instance deployments.
+RandomizedDelaySec=600
+AccuracySec=1m
+Unit=fluxpay-reconciliation.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,104 @@
+[Unit]
+Description=FluxPay API (instance %i)
+Documentation=https://github.com/fluxpay/fluxpay/blob/main/docs/architecture.md
+After=network-online.target postgresql.service valkey.service rabbitmq-server.service
+Wants=network-online.target
+
+[Service]
+# Type=exec: Simple, deterministic process management. Socket accept serves as the readiness
+# proof verified by Nginx upstream health checks. Type=notify with sd_notify plumbing is Phase 2 polish.
+Type=exec
+User=fluxpay-api
+Group=fluxpay
+UMask=0027
+WorkingDirectory=/opt/fluxpay/current
+
+# ExecStart command running Gunicorn with Uvicorn workers bound strictly to Unix Domain Sockets (UDS).
+# The Drain Triangle:
+# - Worker timeout: 60s (hard deadline for stuck connections)
+# - Graceful timeout: 30s (worker allows in-flight payments to finish before terminating)
+# - Matched to Nginx proxy_read_timeout 65s and systemd TimeoutStopSec 35s.
+ExecStart=/opt/fluxpay/current/.venv/bin/gunicorn fluxpay.main:app -k uvicorn.workers.UvicornWorker -w 4 --bind unix:/run/fluxpay/api-%i.sock --worker-tmp-dir /dev/shm --timeout 60 --graceful-timeout 30 --keep-alive 5
+
+# EnvironmentFile: Doppler-rendered environment variables (Task 68). NO secrets stored in unit files.
+EnvironmentFile=/etc/fluxpay/env
+
+# ExecReload: SIGHUP triggers graceful worker reload without dropping active connections.
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=3
+
+# TimeoutStopSec=35: Must exceed Gunicorn's 30s graceful timeout so systemd does not SIGKILL workers mid-drain.
+TimeoutStopSec=35
+
+# ==============================================================================
+# HARDENING BLOCK (PLATFORM SECURITY ARMOR)
+# Every directive is strictly documented with operational rationale.
+# ==============================================================================
+# Prevent process and descendants from gaining new privileges via setuid/setgid binaries.
+NoNewPrivileges=true
+
+# Mount /usr, /boot, and /etc as read-only.
+ProtectSystem=strict
+
+# Explicitly whitelist the runtime directory for Unix domain sockets and PID files.
+ReadWritePaths=/run/fluxpay
+
+# Make /home, /root, and /run/user inaccessible to the service.
+ProtectHome=true
+
+# Provide an isolated, private /tmp and /var/tmp mounted on a private filesystem namespace.
+PrivateTmp=true
+
+# Restrict access to physical hardware devices; provides an empty pseudo /dev.
+PrivateDevices=true
+
+# Protect kernel variables (/proc/sys, /sys) against modification.
+ProtectKernelTunables=true
+
+# Disallow loading or unloading of kernel modules.
+ProtectKernelModules=true
+
+# Disallow modifications to cgroup hierarchies via /sys/fs/cgroup.
+ProtectControlGroups=true
+
+# Prevent service from altering system clock or real-time clock.
+ProtectClock=true
+
+# Prevent service from modifying system hostname or domainname.
+ProtectHostname=true
+
+# Minimal address family allowance: AF_UNIX for UDS ingress and AF_INET for localhost AMQP/Redis.
+# Note: AF_UNIX only was considered, but AMQP to RabbitMQ and Valkey connections run over localhost TCP (AF_INET).
+RestrictAddressFamilies=AF_UNIX AF_INET
+
+# Resource quotas preventing runaway memory consumption or fork bombs.
+MemoryMax=2G
+TasksMax=256
+LimitNOFILE=65535
+
+# System call whitelist allowing standard system service syscalls (asyncio, epoll, UDS).
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Lock personality to prevent execution domain switching.
+LockPersonality=true
+
+# Restrict namespace creation (IPC, net, pid, user, uts).
+RestrictNamespaces=true
+
+# Restrict real-time scheduling to prevent CPU starvation of other system processes.
+RestrictRealtime=true
+
+# Hide processes owned by other users from /proc (requires Linux 5.8+).
+ProtectProc=invisible
+ProcSubset=pid
+
+# Drop all POSIX capabilities; pure unprivileged user execution.
+CapabilityBoundingSet=
+
+# Network IP policy: Keep none in Phase 1 to prevent nss/localhost resolution gotchas.
+IPAddressDeny=none
+
+[Install]
+WantedBy=multi-user.target

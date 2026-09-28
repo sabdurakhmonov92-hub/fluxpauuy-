@@ -1,0 +1,92 @@
+[build-system]
+requires = ["hatchling>=1.27.0,<2.0.0"] # Modern, standards-compliant PEP 517 build backend
+build-backend = "hatchling.build" # Standard Hatchling build entry point
+
+[project]
+name = "fluxpay" # Name of the core payment infrastructure platform package
+version = "0.1.0" # Initial semver release version for repository foundation
+description = "Payment platform for autonomous AI agents" # Project summary
+readme = "README.md" # Primary repository documentation file
+requires-python = ">=3.12" # Enforce Python 3.12+ runtime for modern typing and asyncio features
+dependencies = [
+    "fastapi>=0.115.0,<1.0.0", # Core ASGI web framework providing OpenAPI generation and high-throughput async routing
+    "uvicorn[standard]>=0.32.0,<1.0.0", # Production ASGI server with uvloop and httptools for low-latency request handling
+    "gunicorn>=23.0.0,<24.0.0", # Process manager for running Uvicorn workers behind systemd Unix domain sockets
+    "pydantic>=2.10.0,<3.0.0", # Rust-backed runtime data validation and strict serialization for financial payloads
+    "pydantic-settings>=2.7.0,<3.0.0", # Environment variable parsing and type-safe twelve-factor configuration management
+    "asyncpg>=0.30.0,<1.0.0", # High-performance async PostgreSQL driver with native binary protocol support
+    "redis>=5.2.0,<6.0.0", # Async Valkey/Redis client for distributed locking, rate-limiting, and ephemeral state
+    "aio-pika>=9.5.0,<10.0.0", # Robust AMQP 0-9-1 async client for reliable message publishing and consumption with RabbitMQ
+    "httpx>=0.28.0,<1.0.0", # Async HTTP client with connection pooling and HTTP/2 for outbound bank/gateway integrations
+    "cryptography>=44.0.0,<45.0.0", # Cryptographic primitives for payment signature verification, HMACs, and key management
+    "structlog>=24.4.0,<25.0.0", # Structured JSON logging with contextvars for distributed tracing and audit trails
+    "orjson>=3.10.0,<4.0.0", # Ultra-fast Rust-backed JSON serialization/deserialization for financial payloads
+    "arq>=0.26.0,<1.0.0", # Lightweight Redis-based async job queue for background tasks and delayed retries
+    "prometheus-client>=0.21.0,<1.0.0", # Native Prometheus metrics exposition for latency, throughput, and payment counters
+    "sentry-sdk[fastapi]>=2.20.0,<3.0.0", # Error tracking, performance monitoring, and exception alerting for FastAPI
+    "pyjwt[crypto]>=2.9.0,<3.0.0", # Audited JWT parsing and cryptographic signature verification for Keycloak admin plane
+    "web3>=7.0.0,<8.0.0", # Battle-tested EVM RPC, ABI encoding, and keccak hashing for Base L2 on-chain observation
+    "jinja2>=3.1.0,<4.0.0", # Audited server-rendered template engine for zero-node zero-SPA admin dashboard
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0,<9.0.0", # Primary test framework for unit and integration test execution
+    "pytest-asyncio>=0.25.0,<1.0.0", # Pytest extension providing native async test loop execution and fixtures
+    "pytest-cov>=6.0.0,<7.0.0", # Pytest plugin for measuring test suite code and branch coverage
+    "ruff>=0.9.0,<1.0.0", # Extremely fast Python linter and code formatter replacing flake8, isort, and black
+    "mypy>=1.14.0,<2.0.0", # Static type checker enforcing strict type invariants across the codebase
+    "jsonschema>=4.26.0", # Draft 2020-12 JSON Schema validation for webhook contract verification
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fluxpay"] # Restrict packaging strictly to the src/fluxpay package tree
+
+[tool.ruff]
+line-length = 100 # Standard 100-character line limit balancing readability and modern widescreen displays
+target-version = "py312" # Enforce Python 3.12 syntax and modern runtime idioms
+
+[tool.ruff.lint]
+select = [ # Comprehensive lint rule selection for safety, security, and modern Python
+    "E",     # pycodestyle errors: enforce standard formatting and syntax correctness
+    "F",     # pyflakes: detect unused imports, undefined variables, and logic errors
+    "I",     # isort: enforce deterministic, sorted import ordering
+    "N",     # pep8-naming: enforce consistent PEP 8 naming conventions
+    "UP",    # pyupgrade: automatically upgrade syntax to modern Python 3.12 constructs
+    "B",     # flake8-bugbear: catch common Python design pitfalls and subtle bugs
+    "S",     # flake8-bandit: detect automated security vulnerabilities and risky code patterns
+    "ASYNC", # flake8-async: detect blocking calls, misuse of asyncio primitives, and cancellation pitfalls
+    "RUF",   # ruff-specific: catch Ruff-exclusive optimizations and anti-patterns
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"] # Allow standard assert statements in test suite; forbidden in production code
+
+[tool.mypy]
+strict = true # Enforce absolute type safety across all codebase modules
+plugins = ["pydantic.mypy"] # Enable deep Pydantic V2 model validation and schema type inference
+files = ["src", "tests"] # Typecheck both production code and test suites to prevent test decay
+warn_unreachable = true # Flag dead code paths and impossible conditional branches
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto" # Automatically discover and run async test coroutines without explicit decorators
+# WHY -m "not throughput": throughput tests run via `make smoke` explicitly.
+addopts = ["--strict-markers", "-m", "not throughput"]
+filterwarnings = [
+    "error", # Elevate all runtime warnings to errors to ensure early defect detection
+    "ignore:websockets\\.legacy is deprecated:DeprecationWarning", # Suppress upstream Web3 v7 legacy websocket deprecation
+]
+markers = [
+    "unit: Unit tests verifying isolated domain invariants without external I/O", # Fast, isolated in-memory tests
+    "integration: Integration tests exercising external databases, brokers, and networks", # Slower tests requiring services
+    "throughput: sustained-write ledger smoke (local/nightly, excluded from CI default)",
+]
+testpaths = ["tests"] # Restrict test collection root to the tests directory
+
+[tool.coverage.run]
+branch = true # Measure branch coverage to ensure all execution paths and conditionals are tested
+source = ["src/fluxpay"] # Restrict code coverage measurement strictly to the core fluxpay package
+
+[tool.coverage.report]
+show_missing = true # Display exact line numbers missing test coverage in terminal reports
+fail_under = 100 # Demand 100% test coverage discipline from day 1 for financial payment logic

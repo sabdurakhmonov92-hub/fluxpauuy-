@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Trail — FluxPay Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h2>Forensic System Audit Trail</h2>
+  <p class="card-subtext">Immutable log of privileged administrative and operational actions. Read access is permitted for both Admin and Support operators (Separation of Duties).</p>
+</div>
+
+<div class="table-container mb-4">
+  <table id="audit-table">
+    <thead>
+      <tr>
+        <th>Occurred At (UTC)</th>
+        <th>Action</th>
+        <th>Target Type</th>
+        <th>Target ID</th>
+        <th>Actor</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in actions %}
+      <tr>
+        <td style="white-space: nowrap;">{{ item.occurred_at }}</td>
+        <td><strong style="color: var(--accent);">{{ item.action }}</strong></td>
+        <td><span class="badge badge-admin">{{ item.target_type }}</span></td>
+        <td><code>{{ item.target_id }}</code></td>
+        <td>{{ item.actor_sub }} <span class="badge badge-{{ item.actor_role }}">{{ item.actor_role }}</span></td>
+        <td style="font-size: 11px; max-width: 320px; word-break: break-all;">
+          {% for k, v in item.details.items() %}
+            <span><strong>{{ k }}:</strong> {{ v }}</span>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="card-subtext text-center">No audit records logged yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
