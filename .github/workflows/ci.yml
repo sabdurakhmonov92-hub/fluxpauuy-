@@ -45,6 +45,9 @@ jobs:
       - name: Type check with mypy
         run: uv run mypy
 
+      - name: Run deploy and architecture meta-tests
+        run: uv run pytest tests/deploy -v
+
   tests:
     name: Test Suite
     needs: static

@@ -274,6 +274,14 @@ def test_migrate_sh_syntax_and_contract() -> None:
     assert "FLX_PG_DSN" in content
     assert "sorted_files" in content or "sort" in content, "Migrations must execute in sorted order"
 
+    # FIX-6 Guard: Parameterized filename in psql (no raw string concat)
+    assert ":'fname'" in content or (":'" in content and "fname'" in content), (
+        "migrate.sh must bind filename via psql variable :'fname'"
+    )
+    assert "WHERE filename = '$" not in content, (
+        "migrate.sh must not concatenate '$filename' into SQL query"
+    )
+
 
 # -----------------------------------------------------------------------------
 # 6. DEPLOY.SH CONTRACT & SYNTAX
@@ -303,8 +311,9 @@ def test_deploy_sh_syntax_and_contract() -> None:
     assert "--rollback" in content
     assert ".previous-release" in content
 
-    # Doppler env guard
+    # Doppler env guard & Nginx conf early guard (FIX-5)
     assert "/etc/fluxpay/env" in content
+    assert "/etc/nginx/fluxpay.conf" in content
 
     # Instance-aware rolling restart and socket health poll
     assert "poll_healthz" in content
@@ -317,6 +326,49 @@ def test_deploy_sh_syntax_and_contract() -> None:
 
     # Idempotent worker restart
     assert "systemctl restart fluxpay-worker@" in content
+
+    # FIX-7 Guard: DSN extraction uses sed and does not use tr -d '"'
+    assert "sed -E" in content, "deploy.sh must use sed -E for DSN extraction"
+    dsn_lines = [line for line in content.splitlines() if "FLX_PG_DSN" in line]
+    for line in dsn_lines:
+        assert 'tr -d \'"\'' not in line and "tr -d '\"'" not in line, (
+            "deploy.sh must not use tr -d '\"' in DSN extraction"
+        )
+
+
+def test_deploy_sh_inactive_first_zero_downtime_restart() -> None:
+    """Assert deploy.sh implements inactive-first restart ordering for true zero-downtime."""
+    script_path = DEPLOY_DIR / "deploy.sh"
+    content = script_path.read_text(encoding="utf-8")
+
+    # Inactive-first logic presence
+    assert "ACTIVE=" in content, "deploy.sh must detect and set ACTIVE="
+    assert "TRUE ZERO-DOWNTIME" in content
+
+    # Find step 9-10 boundaries
+    step9_idx = content.find("9. TRUE ZERO-DOWNTIME")
+    assert step9_idx != -1, "Missing step 9 marker in deploy.sh"
+    step_content = content[step9_idx:]
+
+    inactive_restart_idx = step_content.find('systemctl restart "$INACTIVE_UNIT"')
+    active_rewrite_idx = step_content.find('echo "proxy_pass http://api_${INACTIVE};"')
+    nginx_reload_idx = step_content.find("nginx -s reload")
+    active_restart_idx = step_content.find('systemctl restart "$ACTIVE_UNIT"')
+
+    assert inactive_restart_idx != -1, "Missing inactive instance restart"
+    assert active_rewrite_idx != -1, "Missing active include rewrite"
+    assert nginx_reload_idx != -1, "Missing nginx reload"
+    assert active_restart_idx != -1, "Missing active instance restart"
+
+    # Ordering: restart of non-active instance BEFORE active include rewrite
+    assert inactive_restart_idx < active_rewrite_idx, (
+        "Inactive instance must be restarted BEFORE active include rewrite"
+    )
+
+    # Ordering: nginx reload line must appear BETWEEN the two systemctl restart blocks
+    assert inactive_restart_idx < nginx_reload_idx < active_restart_idx, (
+        "Nginx reload must appear BETWEEN the inactive and active systemctl restart blocks"
+    )
 
 
 # -----------------------------------------------------------------------------

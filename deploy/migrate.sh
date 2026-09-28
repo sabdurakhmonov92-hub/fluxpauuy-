@@ -1,25 +1,22 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# FLUXPAY SQL MIGRATION RUNNER (TASK 65)
+# FLUXPAY SQL MIGRATION RUNNER
 # Blueprint §11 Contract Fulfillment: Migrations apply before restart.
 #
-# ARCHITECTURAL DEVIATION RATIONALE (BLUEPRINT §11 "ALEMBIC" WORD):
-# Blueprint §11 originally mentioned "alembic -> restart" as illustrative shorthand
-# for "migrations apply before restart". However, FluxPay never adopted SQLAlchemy
-# or Alembic in any task (Tasks 11-55 all authored pure PostgreSQL idempotent SQL).
-# Introducing an ORM migration framework for 11 pure SQL files would introduce
-# significant tooling debt, extra Python runtime dependencies, and schema drift risk.
-# This runner strictly fulfills the §11 contract using a resilient, atomic psql
-# loop backed by a schema_migrations bookkeeping table.
+# ARCHITECTURAL RATIONALE:
+# Pure PostgreSQL idempotent migrations run via psql without ORM bloat.
+# All schema migrations execute BEFORE code deployment (expand-contract law).
 #
-# EXPAND-CONTRACT DOCTRINE:
-# Schema migrations MUST execute BEFORE code deployment. All SQL migrations must
-# be additive/backward-compatible (expand phase) so current running code continues
-# to operate until the symlink switch. Deprecated columns/tables are dropped in
-# subsequent releases (contract phase).
+# CRASH & IDEMPOTENCY SAFETY:
+# Success is recorded in schema_migrations strictly AFTER each file applies.
+# A crash between SQL execution and the bookkeeping record causes the migration
+# to re-apply on the next run. Because all migrations in migrations/*.sql are
+# written to be strictly idempotent (CREATE TABLE IF NOT EXISTS, DO $$ blocks,
+# ADD COLUMN IF NOT EXISTS), re-applying an already-applied migration is safe.
 # ==============================================================================
 set -euo pipefail
 
+# DSN from FLX_PG_DSN (with DATABASE_URL fallback)
 DSN="${FLX_PG_DSN:-${DATABASE_URL:-}}"
 if [[ -z "$DSN" ]]; then
     echo "ERROR: FLX_PG_DSN or DATABASE_URL must be set to run migrations." >&2
@@ -67,8 +64,8 @@ for file_path in "${sorted_files[@]}"; do
     filename="$(basename "$file_path")"
 
     # Check if migration has already been applied
-    already_applied=$(psql "$DSN" -v ON_ERROR_STOP=1 -t -A -c "
-        SELECT 1 FROM schema_migrations WHERE filename = '$filename';
+    already_applied=$(psql "$DSN" -v ON_ERROR_STOP=1 -v fname="$filename" -t -A -c "
+        SELECT 1 FROM schema_migrations WHERE filename = :'fname';
     ")
 
     if [[ "$already_applied" == "1" ]]; then
@@ -78,12 +75,12 @@ for file_path in "${sorted_files[@]}"; do
 
     echo "Applying migration: $filename ..."
     
-    # Execute migration script with fail-fast ON_ERROR_STOP=1
+    # Execute migration script with fail-fast ON_ERROR_STOP=1 (exit 1 on first failure)
     psql "$DSN" -v ON_ERROR_STOP=1 -f "$file_path"
 
-    # Record migration in bookkeeping table
-    psql "$DSN" -v ON_ERROR_STOP=1 --quiet -c "
-        INSERT INTO schema_migrations (filename) VALUES ('$filename');
+    # Record success AFTER the file applies
+    psql "$DSN" -v ON_ERROR_STOP=1 -v fname="$filename" --quiet -c "
+        INSERT INTO schema_migrations (filename) VALUES (:'fname');
     "
     echo "Applied: $filename [OK]"
     applied_count=$((applied_count + 1))

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# FLUXPAY PRODUCTION DEPLOYMENT & ROLLBACK ENGINE (TASK 65)
+# FLUXPAY PRODUCTION DEPLOYMENT & ROLLBACK ENGINE
 # Blueprint §11: Native systemd + UDS, blue-green Nginx switch, 5s symlink rollback.
 #
 # THE DRAIN TRIANGLE:
@@ -53,16 +53,25 @@ if [[ "${1:-}" == "--rollback" ]]; then
     echo "Rolling back current symlink -> $TARGET_RELEASE ..."
     ln -sfn "$TARGET_RELEASE" "$CURRENT_LINK"
 
+    echo "Reversing Nginx active include..."
+    mkdir -p "$(dirname "$NGINX_ACTIVE_CONF")"
+    if grep -q "api_blue" "$NGINX_ACTIVE_CONF" 2>/dev/null; then
+        echo "proxy_pass http://api_green;" > "$NGINX_ACTIVE_CONF"
+    else
+        echo "proxy_pass http://api_blue;" > "$NGINX_ACTIVE_CONF"
+    fi
+
     echo "Reloading Nginx edge configuration..."
     if command -v nginx >/dev/null 2>&1; then
         nginx -t
         nginx -s reload
     fi
 
-    echo "Restarting background workers..."
+    echo "Restarting background workers and API instances..."
+    # Rollback path: symlink back + flip active + restart BOTH (the 5s symlink window is the switch, process restarts follow)
     if command -v systemctl >/dev/null 2>&1; then
         systemctl restart fluxpay-worker@fanout fluxpay-worker@delivery || true
-        systemctl reload-or-restart fluxpay-api@1 fluxpay-api@2 || true
+        systemctl restart fluxpay-api@1 fluxpay-api@2 || true
     fi
 
     echo "=== Rollback Complete (5s window honored) ==="
@@ -89,11 +98,16 @@ if [[ $CI_ASSERTED -eq 0 && "${CI_GREEN_ASSERTED:-0}" != "1" ]]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 3. DOPPLER ENVIRONMENT INVARIANT GUARD
-# Refuse deployment if /etc/fluxpay/env does not exist. Never auto-create secrets.
+# 3. DOPPLER ENVIRONMENT & NGINX PROVISIONING INVARIANT GUARDS
+# Refuse deployment if /etc/fluxpay/env or /etc/nginx/fluxpay.conf does not exist.
 # ------------------------------------------------------------------------------
 if [[ ! -f "$ENV_FILE" ]]; then
-    echo "ERROR: /etc/fluxpay/env is missing! Run Doppler bootstrap to render /etc/fluxpay/env before deploying. (Task 68 bootstrap flow)" >&2
+    echo "ERROR: /etc/fluxpay/env is missing! Run Doppler bootstrap to render /etc/fluxpay/env before deploying." >&2
+    exit 1
+fi
+
+if [[ ! -f "/etc/nginx/fluxpay.conf" ]]; then
+    echo "ERROR: /etc/nginx/fluxpay.conf is missing! Run Ansible provisioning first (deploy/ansible/)." >&2
     exit 1
 fi
 
@@ -111,7 +125,7 @@ mkdir -p "$RELEASE_DIR"
 
 # Rsync codebase excluding .git, .venv, and tests.
 # WHY tests excluded: Production deploy box runs financial transactions; test fixtures
-# must never execute against production DB/bus. Smoke checks run via /healthz and Task 70 CI.
+# must never execute against production DB/bus. Smoke checks run via /healthz and CI.
 echo "Syncing repository files to release directory..."
 rsync -a --delete \
     --exclude .git \
@@ -134,7 +148,8 @@ fi
 # Migrations execute BEFORE symlink switch. Backward-compatible changes only.
 # ------------------------------------------------------------------------------
 echo "Running SQL migrations via migrate.sh..."
-export FLX_PG_DSN="$(grep -E '^FLX_PG_DSN=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' || true)"
+FLX_PG_DSN_LINE="$(grep -E '^FLX_PG_DSN=' "$ENV_FILE" | head -n1)"
+export FLX_PG_DSN="$(printf '%s' "$FLX_PG_DSN_LINE" | sed -E "s/^FLX_PG_DSN=[\"']?([^\"']*)[\"']?$/\1/")"
 bash "$RELEASE_DIR/deploy/migrate.sh"
 
 # ------------------------------------------------------------------------------
@@ -148,8 +163,22 @@ if [[ -d "$RELEASE_DIR/deploy/systemd" && -d /etc/systemd/system ]]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 8. INSTANCE-AWARE ROLLING RESTART & HEALTH POLL
-# Restart api-1 first, verify healthz, then restart api-2.
+# 8. ATOMIC SWITCH: UPDATE SYMLINK
+# ------------------------------------------------------------------------------
+if [[ -L "$CURRENT_LINK" || -e "$CURRENT_LINK" ]]; then
+    # Track current release for instant rollback
+    readlink -f "$CURRENT_LINK" > "$PREV_RELEASE_FILE" || true
+fi
+
+echo "Switching current symlink -> $RELEASE_DIR ..."
+ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
+
+# ------------------------------------------------------------------------------
+# 9. TRUE ZERO-DOWNTIME: inactive-first restart; active flips only after the new instance is healthy.
+# Determine currently active upstream from /etc/nginx/fluxpay-active.conf.
+# Restart the inactive instance first, verify healthz, flip active include to it,
+# reload nginx, and only then restart the previously-active instance.
+# At every moment >=1 healthy instance serves traffic.
 # ------------------------------------------------------------------------------
 poll_healthz() {
     local socket_path="$1"
@@ -171,38 +200,49 @@ poll_healthz() {
     return 1
 }
 
+# Determine active instance: grep api_blue -> ACTIVE=blue else ACTIVE=green
+if grep -q "api_blue" "$NGINX_ACTIVE_CONF" 2>/dev/null; then
+    ACTIVE="blue"
+    INACTIVE="green"
+    INACTIVE_UNIT="fluxpay-api@2"
+    INACTIVE_SOCK="/run/fluxpay/api-2.sock"
+    ACTIVE_UNIT="fluxpay-api@1"
+    ACTIVE_SOCK="/run/fluxpay/api-1.sock"
+else
+    ACTIVE="green"
+    INACTIVE="blue"
+    INACTIVE_UNIT="fluxpay-api@1"
+    INACTIVE_SOCK="/run/fluxpay/api-1.sock"
+    ACTIVE_UNIT="fluxpay-api@2"
+    ACTIVE_SOCK="/run/fluxpay/api-2.sock"
+fi
+
 if command -v systemctl >/dev/null 2>&1; then
-    echo "Restarting fluxpay-api@1..."
-    systemctl restart fluxpay-api@1
-    poll_healthz "/run/fluxpay/api-1.sock"
-
-    echo "Restarting fluxpay-api@2..."
-    systemctl restart fluxpay-api@2
-    poll_healthz "/run/fluxpay/api-2.sock"
+    echo "Restarting inactive instance $INACTIVE_UNIT first..."
+    systemctl restart "$INACTIVE_UNIT"
+    poll_healthz "$INACTIVE_SOCK"
 fi
 
 # ------------------------------------------------------------------------------
-# 9. ATOMIC SWITCH: UPDATE SYMLINK & NGINX ACTIVE INCLUDE
+# 10. FLIP ACTIVE UPSTREAM & RELOAD NGINX, THEN RESTART PREVIOUSLY-ACTIVE
 # ------------------------------------------------------------------------------
-if [[ -L "$CURRENT_LINK" || -e "$CURRENT_LINK" ]]; then
-    # Track current release for instant rollback
-    readlink -f "$CURRENT_LINK" > "$PREV_RELEASE_FILE" || true
-fi
-
-echo "Switching current symlink -> $RELEASE_DIR ..."
-ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
-
-echo "Setting active Nginx upstream to api_blue..."
+echo "Switching active Nginx upstream to api_${INACTIVE}..."
 mkdir -p "$(dirname "$NGINX_ACTIVE_CONF")"
-echo "proxy_pass http://api_blue;" > "$NGINX_ACTIVE_CONF"
+echo "proxy_pass http://api_${INACTIVE};" > "$NGINX_ACTIVE_CONF"
 
 if command -v nginx >/dev/null 2>&1; then
     nginx -t
     nginx -s reload
 fi
 
+if command -v systemctl >/dev/null 2>&1; then
+    echo "Restarting previously-active instance $ACTIVE_UNIT..."
+    systemctl restart "$ACTIVE_UNIT"
+    poll_healthz "$ACTIVE_SOCK"
+fi
+
 # ------------------------------------------------------------------------------
-# 10. RESTART BACKGROUND WORKERS
+# 11. RESTART BACKGROUND WORKERS
 # ------------------------------------------------------------------------------
 if command -v systemctl >/dev/null 2>&1; then
     echo "Restarting long-running background workers..."
@@ -210,7 +250,7 @@ if command -v systemctl >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------------------------------------
-# 11. POST-SWITCH SMOKE CHECK
+# 12. POST-SWITCH SMOKE CHECK
 # ------------------------------------------------------------------------------
 echo "=== Post-Switch Smoke Verification ==="
 if command -v curl >/dev/null 2>&1; then

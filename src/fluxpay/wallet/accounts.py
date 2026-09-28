@@ -58,7 +58,7 @@ __all__ = [
     "reset_fees_cache",
 ]
 
-# Fixed namespace UUID for platform-level deterministic account generation (Task 27 seed).
+# single source: bootstrap.sql; this constant mirrors it — guarded by test_bootstrap_determinism
 FLXPAY_NAMESPACE_UUID: Final[UUID] = UUID("f1047a71-0000-5000-8000-000000000000")
 
 # Deterministic owner IDs for singleton platform accounts (mirrors deploy/sql/bootstrap.sql).

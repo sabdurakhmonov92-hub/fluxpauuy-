@@ -16,14 +16,13 @@ from pathlib import Path
 
 import httpx
 import pytest
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from fluxpay.alerts.router import (
     AlertRouter,
     create_alert_router_app,
 )
 from fluxpay.config import Settings
-from fluxpay.main import create_app
 from fluxpay.shared.metrics import (
     FLX_PAYMENTS_TOTAL,
 )
@@ -49,6 +48,8 @@ async def test_metrics_exposition_endpoint_and_money_path_counter() -> None:
 
     Verifies settled counter is present.
     """
+    from fluxpay.main import create_app
+
     app = create_app()
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"

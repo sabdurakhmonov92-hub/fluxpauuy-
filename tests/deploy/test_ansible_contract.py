@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from fluxpay.config import Settings
 
@@ -315,3 +315,24 @@ def test_makefile_contract() -> None:
     assert "check-syntax:" in makefile_text
     assert "provision:" in makefile_text
     assert "--syntax-check" in makefile_text
+
+
+# -----------------------------------------------------------------------------
+# 11. NGINX PROVISIONING & ACTIVE BOOTSTRAP CONTRACT (FIX-5)
+# -----------------------------------------------------------------------------
+
+
+def test_nginx_provisioning_contract() -> None:
+    """Assert playbook installs nginx fluxpay.conf and bootstraps fluxpay-active.conf."""
+    playbook_text = (ANSIBLE_DIR / "playbook.yml").read_text(encoding="utf-8")
+    nginx_conf_path = DEPLOY_DIR / "nginx" / "fluxpay.conf"
+
+    assert nginx_conf_path.is_file(), f"deploy/nginx/fluxpay.conf missing: {nginx_conf_path}"
+    assert "fluxpay.conf" in playbook_text, "playbook.yml must reference fluxpay.conf"
+    assert (
+        "ansible.builtin.copy:" in playbook_text or "ansible.builtin.template:" in playbook_text
+    )
+    assert "fluxpay-active.conf" in playbook_text, (
+        "playbook.yml must bootstrap /etc/nginx/fluxpay-active.conf"
+    )
+

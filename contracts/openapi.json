@@ -1,0 +1,1027 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FluxPay",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/admin/holds/{hold_id}/vote": {
+      "post": {
+        "summary": "Vote Hold",
+        "description": "Submit an approval or rejection vote on a quarantined payment hold.\n\nRole Requirement: 'admin' only.\nRequest Body:\n    {\"vote\": \"approve\" | \"reject\", \"note\": \"optional justification\"}\nResponse (200 OK):\n    {\"status\": \"counted\" | \"approved_settled\" | \"rejected\" | \"already_voted\",\n     \"votes_for\": int, \"votes_against\": int}",
+        "operationId": "vote_hold_admin_holds__hold_id__vote_post",
+        "parameters": [
+          {
+            "name": "hold_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hold Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Dashboard Root",
+        "description": "Redirect root dashboard path to the agent management overview.",
+        "operationId": "dashboard_root_dashboard_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/agents": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "List Agents",
+        "description": "List all registered autonomous agents for operator inspection.",
+        "operationId": "list_agents_dashboard_agents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Dashboard Agent",
+        "description": "Provision a new autonomous agent and display its plaintext secret ONCE.\n\nEnforces:\n- Admin-only role check.\n- Input validation (external_id, name, currency, limits).\n- Cache-Control: no-store headers on the response.\n- Zero plaintext secret in database or audit logs.",
+        "operationId": "post_dashboard_agent_dashboard_agents_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/agents/{agent_id}": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Get Agent Statement",
+        "description": "Screen 1: Balance card, cryptographic proof, and keyset-paginated statement.",
+        "operationId": "get_agent_statement_dashboard_agents__agent_id__get",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "before_seq",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before Seq"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/agents/{agent_id}/limits": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Get Agent Limits Page",
+        "description": "Screen: Edit and view agent financial policy limits.",
+        "operationId": "get_agent_limits_page_dashboard_agents__agent_id__limits_get",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Agent Limits",
+        "description": "Update agent policy limits with PRG pattern (303 Redirect) and audit recording.",
+        "operationId": "post_agent_limits_dashboard_agents__agent_id__limits_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/agents/{agent_id}/suspend": {
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Suspend Agent",
+        "description": "Suspend an active agent with cache invalidation and audit recording.",
+        "operationId": "post_suspend_agent_dashboard_agents__agent_id__suspend_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/agents/{agent_id}/activate": {
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Activate Agent",
+        "description": "Activate a suspended agent with cache invalidation and audit recording.",
+        "operationId": "post_activate_agent_dashboard_agents__agent_id__activate_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/merchants": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "List Merchants",
+        "description": "List registered merchants with status and link to webhook destinations.",
+        "operationId": "list_merchants_dashboard_merchants_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Dashboard Merchant",
+        "description": "Provision a new merchant and settlement ledger account.",
+        "operationId": "post_dashboard_merchant_dashboard_merchants_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/merchants/{external_id}/suspend": {
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Suspend Merchant",
+        "description": "Suspend a merchant by external_id handle.",
+        "operationId": "post_suspend_merchant_dashboard_merchants__external_id__suspend_post",
+        "parameters": [
+          {
+            "name": "external_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "External Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/merchants/{merchant_id}/webhooks": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "List Merchant Webhooks",
+        "description": "List configured HTTPS notification endpoints for a merchant.",
+        "operationId": "list_merchant_webhooks_dashboard_merchants__merchant_id__webhooks_get",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Merchant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Dashboard Webhook",
+        "description": "Create a new webhook destination with one-time secret emission.\n\nDirect SQL Insertion Deviation:\nTask 38 defined webhook_endpoints schema without a domain repository.\nWe write directly to SQL with AES-256-GCM vault envelope encryption bound\nto AAD \"webhook_secret:<endpoint_id>\". Phase 2 refactors to NotificationRepo.",
+        "operationId": "post_dashboard_webhook_dashboard_merchants__merchant_id__webhooks_post",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Merchant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/holds": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "List Holds Page",
+        "description": "Operations panel: Review payments held in HITL quarantine queue.",
+        "operationId": "list_holds_page_dashboard_holds_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/holds/{hold_id}/vote": {
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Hold Vote",
+        "description": "Submit approval or rejection vote on a held payment.\n\nEnforces:\n- Admin-only role check (support rejected with 403 page).\n- ApprovalService 2-man quorum rule.\n- HTMX row swap response or PRG redirect.",
+        "operationId": "post_hold_vote_dashboard_holds__hold_id__vote_post",
+        "parameters": [
+          {
+            "name": "hold_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hold Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/kyc": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "List Kyc Page",
+        "description": "Operations panel: Review pending merchant KYC verification requests.",
+        "operationId": "list_kyc_page_dashboard_kyc_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/kyc/{kyc_id}/decide": {
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Kyc Decision",
+        "description": "Atomically decide a pending KYC request with double-decide guard and audit.",
+        "operationId": "post_kyc_decision_dashboard_kyc__kyc_id__decide_post",
+        "parameters": [
+          {
+            "name": "kyc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Kyc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/audit": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Get Audit Trail Page",
+        "description": "Operations panel: View forensic audit log entries newest-first.\n\nAllowed roles: admin, support (Separation of Duties).",
+        "operationId": "get_audit_trail_page_dashboard_audit_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/treasury": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Get Treasury Page",
+        "description": "Institutional Treasury panel: hot/cold balances, drift, in-flight payouts.\n\nArchitectural Law:\nSTRICTLY READ-ONLY ON WEB. Treasury payouts require two-person cryptographic\nauthorization executed exclusively through the operator CLI:\n    python -m fluxpay.treasury.cli vote --payout-id <id> --vote approve",
+        "operationId": "get_treasury_page_dashboard_treasury_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments": {
+      "post": {
+        "summary": "Post Payment",
+        "description": "Execute or replay a financial payment transaction.\n\nThree-tier idempotency dance:\n1. Redis fastpath replay: intercepted and returned by GatewayMiddleware.\n2. Database-tier replay: returned by service.pay using cached wire bytes.\n3. Fresh execution: posted to double-entry ledger with atomic event publish.",
+        "operationId": "post_payment_v1_payments_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/{tx_id}": {
+      "get": {
+        "summary": "Get Payment",
+        "description": "Query settled payment transaction by transaction ID.\n\nProduct Decision (Ledger-Truth):\nGET by id reflects double-entry ledger truth. Held payments await human review\nin payment_holds and have no ledger transaction, returning 404 here.\nHeld payments are notified via webhooks and future status endpoints (Phase 2).",
+        "operationId": "get_payment_v1_payments__tx_id__get",
+        "parameters": [
+          {
+            "name": "tx_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tx Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/balance": {
+      "get": {
+        "summary": "Get Balance",
+        "description": "Query available ledger balance for the authenticated agent.",
+        "operationId": "get_balance_v1_balance_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalanceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BalanceResponse": {
+        "properties": {
+          "balance": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Balance",
+            "description": "Available ledger balance in minor units (non-negative integer).",
+            "example": 1050
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,10}$",
+            "title": "Currency",
+            "description": "Currency code for the balance account.",
+            "example": "USDC"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "balance",
+          "currency"
+        ],
+        "title": "BalanceResponse",
+        "description": "Wire model for GET /v1/balance (HTTP 200 OK).",
+        "example": {
+          "balance": 1050,
+          "currency": "USDC"
+        }
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "PaymentDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique payment identifier (ledger tx_id).",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "settled",
+              "held"
+            ],
+            "title": "Status",
+            "description": "Payment status ('settled' or 'held').",
+            "example": "settled"
+          },
+          "amount": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "description": "Payment amount in integer minor units (minor units: 6 decimals for USDC).",
+            "example": 1050
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,10}$",
+            "title": "Currency",
+            "description": "Currency code.",
+            "example": "USDC"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "description": "Creation timestamp in UTC ISO-8601 format with explicit '+00:00' offset.",
+            "example": "2026-09-25T12:00:00+00:00"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "amount",
+          "currency",
+          "created_at"
+        ],
+        "title": "PaymentDetail",
+        "description": "Wire model for GET /v1/payments/{id} (HTTP 200 OK).",
+        "example": {
+          "amount": 1050,
+          "created_at": "2026-09-25T12:00:00+00:00",
+          "currency": "USDC",
+          "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "status": "settled"
+        }
+      },
+      "PaymentRequest": {
+        "properties": {
+          "to": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]{3,64}$",
+            "title": "To",
+            "description": "Target merchant identifier (canonical lowercase handle).",
+            "example": "merchant_demo"
+          },
+          "amount": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "description": "Payment amount in integer minor units (e.g. 1050 = $10.50 USDC; minor units: 6 decimals for USDC).",
+            "example": 1050
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,10}$",
+            "title": "Currency",
+            "description": "Currency symbol (2-10 uppercase alphanumeric characters, e.g. 'USDC').",
+            "example": "USDC"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "to",
+          "amount",
+          "currency"
+        ],
+        "title": "PaymentRequest",
+        "description": "Wire model for POST /v1/payments request body.\n\nTransport Note:\nThe idempotency key is intentionally omitted from this payload because it is conveyed\nvia the `X-FLX-Idempotency-Key` HTTP header (Task 19/21/22). This allows reverse proxies\nand gateway middleware to inspect and enforce deduplication before reading the request body.",
+        "example": {
+          "amount": 1050,
+          "currency": "USDC",
+          "to": "merchant_demo"
+        }
+      },
+      "PaymentResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique payment identifier (corresponds 1:1 with ledger tx_id in Phase 1).",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "settled",
+              "held"
+            ],
+            "title": "Status",
+            "description": "Terminal execution status for synchronous rails ('settled' or 'held').",
+            "example": "settled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "PaymentResponse",
+        "description": "Wire model for POST /v1/payments (HTTP 201 Created).\n\nIdentity Guarantee (Task 31):\nIn Phase 1, `id` is identical to the ledger transaction ID (tx_id) \u2014 there is exactly\none internal ledger transaction per external payment.\n\nStatus Guarantee:\nOnly terminal success states ('settled' | 'held') are valid for 201 Created.\nWHY no 'failed': Failures are ERROR responses (HTTP 4xx/5xx) serialized using the standard\nErrorEnvelope. Returning a 201 with status='failed' would force autonomous agent clients to\ninspect payload contents rather than relying on HTTP status semantics.\n\nStatus Evolution Rule:\n'pending' is reserved for future asynchronous settlement rails (Phase 2).\nAdding enum members is backward-compatible for tolerant agent parsers; today's contract\nstrictly freezes status to 'settled' | 'held'.",
+        "example": {
+          "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "status": "settled"
+        }
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -506,6 +506,12 @@
           FLX_ALERT_ROUTER_PORT=9120
           FLX_ALERTROUTER_SECRET="DOPPLER_SECRET_FLX_ALERTROUTER_SECRET"
 
+          # --- Payment Rail: Ethereum L1 (Task 51) ---
+          FLX_ETH_RPC_URL=""
+          FLX_ETH_CHAIN_ID=1
+          FLX_ETH_USDC_ADDRESS="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+          FLX_ETH_CONFIRMATIONS_MIN=1
+
     # ==========================================================================
     # BLOCK D — DATABASE BOOTSTRAP, GRANTS & MIGRATIONS
     # ==========================================================================
@@ -549,11 +555,21 @@
       become_user: postgres
       changed_when: true
 
-    - name: "BLOCK D | Apply database grants contract (Task 13 grants.sql verbatim)"
+    - name: "BLOCK D | Render database grants template (Task 13 grants.sql.j2)"
+      ansible.builtin.template:
+        src: "{{ app_root }}/src/deploy/sql/grants.sql.j2"
+        dest: /tmp/fluxpay-grants.sql
+        owner: postgres
+        group: postgres
+        mode: "0600"
+      vars:
+        app_role: "{{ app_role }}"
+
+    - name: "BLOCK D | Apply database grants contract"
       # App role can SELECT, INSERT on ledger_entries; UPDATE, DELETE, TRUNCATE revoked.
       community.postgresql.postgresql_query:
         db: fluxpay_db
-        path_to_script: "{{ app_root }}/src/deploy/sql/grants.sql"
+        path_to_script: /tmp/fluxpay-grants.sql
         as_single_query: true
       become_user: postgres
 
@@ -665,7 +681,7 @@
         - "fluxpay-metrics-prune.timer"
 
     - name: "BLOCK F | Configure Nginx active upstream pointer to Blue"
-      ansible.builtin.copy:
+      ansible.builtin.template:
         dest: /etc/nginx/fluxpay-active.conf
         owner: root
         group: root
@@ -673,21 +689,28 @@
         force: false
         content: |
           # Initial Nginx upstream link managed by deploy.sh blue-green switch
-          set $active_upstream upstream_blue;
+          proxy_pass http://api_blue;
 
     - name: "BLOCK F | Deploy Nginx edge reverse-proxy configuration"
       ansible.builtin.copy:
         src: "{{ app_root }}/src/deploy/nginx/fluxpay.conf"
-        dest: /etc/nginx/sites-available/fluxpay.conf
+        dest: /etc/nginx/fluxpay.conf
         remote_src: true
         owner: root
         group: root
         mode: "0644"
       notify: reload nginx
 
+    - name: "BLOCK F | Link Nginx FluxPay site configuration into conf.d"
+      ansible.builtin.file:
+        src: /etc/nginx/fluxpay.conf
+        dest: /etc/nginx/conf.d/fluxpay.conf
+        state: link
+      notify: reload nginx
+
     - name: "BLOCK F | Enable Nginx FluxPay site configuration"
       ansible.builtin.file:
-        src: /etc/nginx/sites-available/fluxpay.conf
+        src: /etc/nginx/fluxpay.conf
         dest: /etc/nginx/sites-enabled/fluxpay.conf
         state: link
       notify: reload nginx
