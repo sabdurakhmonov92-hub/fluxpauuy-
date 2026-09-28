@@ -11,7 +11,7 @@ requires-python = ">=3.12" # Enforce Python 3.12+ runtime for modern typing and 
 dependencies = [
     "fastapi>=0.115.0,<1.0.0", # Core ASGI web framework providing OpenAPI generation and high-throughput async routing
     "uvicorn[standard]>=0.32.0,<1.0.0", # Production ASGI server with uvloop and httptools for low-latency request handling
-    "gunicorn>=23.0.0,<24.0.0", # Process manager for running Uvicorn workers behind systemd Unix domain sockets
+    "gunicorn>=23.0.0,<27.0.0", # Process manager for running Uvicorn workers behind systemd Unix domain sockets
     "pydantic>=2.10.0,<3.0.0", # Rust-backed runtime data validation and strict serialization for financial payloads
     "pydantic-settings>=2.7.0,<3.0.0", # Environment variable parsing and type-safe twelve-factor configuration management
     "asyncpg>=0.30.0,<1.0.0", # High-performance async PostgreSQL driver with native binary protocol support
