@@ -536,6 +536,10 @@ def create_app(
     # Dev-mode static mount (Task 65 nginx serves static directly in production)
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
+    # Mount Unified Single-Page Console (All-in-one financial dashboard)
+    from fluxpay.console.router import router as console_router
+    app.include_router(console_router)
+
     # -------------------------------------------------------------------------
     # Exception Handlers (Platform Wire Dialect Enforcement)
     # -------------------------------------------------------------------------

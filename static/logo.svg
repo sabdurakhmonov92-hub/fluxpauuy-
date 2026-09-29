@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" width="200" height="48" fill="none">
+  <defs>
+    <linearGradient id="neonGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d4ff" />
+      <stop offset="50%" stop-color="#7b2cbf" />
+      <stop offset="100%" stop-color="#ff006e" />
+    </linearGradient>
+    <filter id="glowFilter" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Hexagonal Shield Icon -->
+  <path d="M24 4 L40 13 L40 33 L24 44 L8 33 L8 13 Z" stroke="url(#neonGlow)" stroke-width="2.5" fill="#1a1a2e" filter="url(#glowFilter)" />
+  <!-- Lightning Bolt -->
+  <path d="M26 12 L16 25 L23 25 L20 36 L31 22 L24 22 Z" fill="#00d4ff" />
+  <!-- Text: FLUXPAY -->
+  <text x="52" y="31" font-family="Inter, sans-serif" font-weight="800" font-size="22" fill="#ffffff" letter-spacing="1.5">
+    FLUX<tspan fill="#00d4ff">PAY</tspan>
+  </text>
+</svg>

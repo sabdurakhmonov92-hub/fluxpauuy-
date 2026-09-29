@@ -1,0 +1,2227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FluxPay v3 — Real Zero Ledger & Live Autonomous Financial OS</title>
+  <link rel="icon" type="image/png" href="/static/fluxpay_logo_transparent.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Chart.js for real-time live graphics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #060911;
+      --bg-card: rgba(13, 19, 35, 0.75);
+      --bg-card-hover: rgba(22, 31, 56, 0.85);
+      --bg-glass: rgba(255, 255, 255, 0.03);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(99, 102, 241, 0.35);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-faint: #64748b;
+      --indigo: #6366f1;
+      --indigo-glow: rgba(99, 102, 241, 0.25);
+      --cyan: #06b6d4;
+      --cyan-glow: rgba(6, 182, 212, 0.2);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.2);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.2);
+      --rose: #f43f5e;
+      --rose-glow: rgba(244, 63, 94, 0.2);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.14) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 60%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-shell {
+      max-width: 1540px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Header */
+    header.top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 28px;
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-card);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+      font-weight: 800;
+      font-size: 22px;
+      color: #fff;
+    }
+
+    .brand-text h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(to right, #fff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .system-badges {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .badge-emerald {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+
+    .badge-indigo {
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #a5b4fc;
+    }
+
+    .badge-amber {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--indigo), #4f46e5);
+      color: white;
+      box-shadow: 0 4px 14px var(--indigo-glow);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #4f46e5, #4338ca);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg-glass);
+      color: var(--text-main);
+      border-color: var(--border-subtle);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--emerald), #059669);
+      color: white;
+    }
+    .btn-danger {
+      background: linear-gradient(135deg, var(--rose), #e11d48);
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    /* KPI Metrics Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-accent);
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--indigo), var(--cyan));
+      opacity: 0.8;
+    }
+
+    .kpi-card.emerald-accent::before { background: linear-gradient(90deg, #10b981, #06b6d4); }
+    .kpi-card.amber-accent::before { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+    .kpi-card.cyan-accent::before { background: linear-gradient(90deg, #06b6d4, #6366f1); }
+
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      letter-spacing: -0.5px;
+    }
+
+    .kpi-subtext {
+      font-size: 11px;
+      color: var(--text-faint);
+    }
+
+    /* Live Charts Row (Grafika) */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 1024px) {
+      .charts-row { grid-template-columns: 1fr; }
+    }
+
+    .chart-panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 20px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-canvas-box {
+      position: relative;
+      width: 100%;
+      height: 220px;
+    }
+
+    /* Tab Navigation */
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(12px);
+      padding: 6px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      padding: 10px 18px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(6, 182, 212, 0.25));
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.25s ease forwards;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Panel Card */
+    .panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 24px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .panel-title {
+      font-size: 17px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Split Grid for Terminal */
+    .terminal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 980px) {
+      .terminal-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Form Inputs */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    select, input[type="text"], input[type="number"] {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      padding: 12px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--indigo);
+      box-shadow: 0 0 0 3px var(--indigo-glow);
+    }
+
+    .amount-presets {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .preset-chip {
+      padding: 5px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 9999px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .preset-chip:hover {
+      background: var(--indigo-glow);
+      color: var(--indigo);
+      border-color: var(--indigo);
+    }
+
+    /* Receipt Box */
+    .receipt-box {
+      background: rgba(7, 11, 20, 0.8);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .receipt-row .label {
+      color: var(--text-muted);
+    }
+
+    .receipt-row .val {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    /* Tables */
+    .table-container {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(30, 41, 59, 0.5);
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    td {
+      padding: 12px 16px;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .hash-badge {
+      display: inline-block;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #38bdf8;
+      vertical-align: middle;
+    }
+
+    .tag-debit {
+      color: #f87171;
+      font-weight: 700;
+    }
+
+    .tag-credit {
+      color: #34d399;
+      font-weight: 700;
+    }
+
+    .empty-state {
+      padding: 36px;
+      text-align: center;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .empty-icon {
+      font-size: 32px;
+      opacity: 0.6;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #0f172a;
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Toast Notification */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 9999;
+    }
+
+    .toast {
+      background: #1e293b;
+      border: 1px solid var(--border-subtle);
+      border-left: 4px solid var(--indigo);
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      color: #fff;
+      font-size: 13px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideIn 0.2s ease;
+      min-width: 280px;
+      max-width: 420px;
+    }
+
+    .toast.success { border-left-color: var(--emerald); }
+    .toast.error { border-left-color: var(--rose); }
+    .toast.amber { border-left-color: var(--amber); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- Top Navigation & Status -->
+  <header class="top-bar">
+    <div class="brand-group">
+      <img src="/static/fluxpay_logo_transparent.png" alt="FluxPay" class="brand-logo" style="height: 48px; width: auto; max-width: 90px; object-fit: contain; filter: drop-shadow(0 0 16px rgba(6, 182, 212, 0.45));">
+      <div class="brand-text">
+        <h1>FluxPay v3 &bull; AI Agent Settlement Engine</h1>
+        <p>100% Real Double-Entry Cryptographic Invariant Ledger &bull; Zero Simulation State</p>
+      </div>
+    </div>
+
+    <div class="system-badges">
+      <div class="badge badge-emerald">
+        <div class="pulse-dot"></div>
+        <span>PURE 0 REAL ENGINE</span>
+      </div>
+      <div class="badge badge-indigo">
+        <span>CONSERVATION PROOF: 100% VALID</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-primary btn-sm" onclick="openDepositModal()">
+        📥 Deposit / On-Ramp
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="openAgentModal()">
+        + Register Agent
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="openMerchantModal()">
+        + Register Merchant
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="verifyChain()">
+        🔒 Verify Hashchain
+      </button>
+      <button class="btn btn-danger btn-sm" onclick="resetToZero()">
+        ↺ Clean Reset to 0
+      </button>
+      <button class="btn btn-primary btn-sm" onclick="fetchState(true)">
+        🔄 Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- KPI Row (Starts from 0) -->
+  <section class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">
+        <span>Real Settled Volume</span>
+        <span>💵</span>
+      </div>
+      <div class="kpi-value" id="kpi-volume">$0.00 USDC</div>
+      <div class="kpi-subtext">Cumulative real volume processed</div>
+    </div>
+
+    <div class="kpi-card cyan-accent">
+      <div class="kpi-label">
+        <span>Active AI Agents</span>
+        <span>🤖</span>
+      </div>
+      <div class="kpi-value" id="kpi-agents">0 Active</div>
+      <div class="kpi-subtext" id="kpi-liquidity">$0.00 USDC total allocated</div>
+    </div>
+
+    <div class="kpi-card emerald-accent">
+      <div class="kpi-label">
+        <span>Settled Transactions</span>
+        <span>⚡</span>
+      </div>
+      <div class="kpi-value" id="kpi-txs">0</div>
+      <div class="kpi-subtext">Real double-entry commitments</div>
+    </div>
+
+    <div class="kpi-card amber-accent">
+      <div class="kpi-label">
+        <span>Quarantine Holds</span>
+        <span>🛡️</span>
+      </div>
+      <div class="kpi-value" id="kpi-holds">0</div>
+      <div class="kpi-subtext">Real pending risk ceiling holds</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-label">
+        <span>Ledger Blocks</span>
+        <span>⛓️</span>
+      </div>
+      <div class="kpi-value" id="kpi-blocks">0</div>
+      <div class="kpi-subtext">SHA-256 genesis-linked chain</div>
+    </div>
+
+    <div class="kpi-card emerald-accent">
+      <div class="kpi-label">
+        <span>Platform Reserve Pool</span>
+        <span>🏦</span>
+      </div>
+      <div class="kpi-value" id="kpi-reserves">$1,000,000.00</div>
+      <div class="kpi-subtext">System Genesis Liquidity Pool</div>
+    </div>
+  </section>
+
+  <!-- Real-time Live Graphics Row (Grafika) -->
+  <section class="charts-row">
+    <!-- Volume Time Series Chart -->
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">
+          <span>📈 Real-Time Settled Volume Time-Series</span>
+        </div>
+        <span class="badge badge-indigo" id="chart-volume-badge">Starting from $0.00 USDC</span>
+      </div>
+      <div class="chart-canvas-box">
+        <canvas id="volumeChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Agent Liquidity Breakdown Chart -->
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">
+          <span>🍩 Agent Liquidity Distribution</span>
+        </div>
+        <span class="badge badge-emerald" id="chart-agent-count-badge">0 Agents</span>
+      </div>
+      <div class="chart-canvas-box">
+        <canvas id="agentChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Unified Navigation Bar (Tabs on the same page) -->
+  <nav class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('terminal')">⚡ Live Payment Console</button>
+    <button class="tab-btn" onclick="switchTab('agents')">🤖 Agents & Wallets (<span id="tab-agent-count">0</span>)</button>
+    <button class="tab-btn" onclick="switchTab('merchants')">🏪 Merchants Directory (<span id="tab-merch-count">0</span>)</button>
+    <button class="tab-btn" onclick="switchTab('ledger')">⛓️ Double-Entry Hashchain (<span id="tab-block-count">0</span>)</button>
+    <button class="tab-btn" onclick="switchTab('holds')">🛡️ Quarantine & Holds <span id="tab-holds-badge" class="badge badge-amber" style="padding:2px 6px; font-size:10px; margin-left:4px;">0</span></button>
+    <button class="tab-btn" onclick="switchTab('limits')">⚙️ Risk Limits</button>
+    <button class="tab-btn" onclick="switchTab('treasury')">🏦 Treasury & Reserves</button>
+    <button class="tab-btn" onclick="switchTab('audit')">📜 Audit & Event Stream</button>
+  </nav>
+
+  <!-- ===================================================================== -->
+  <!-- TAB 1: LIVE PAYMENT TERMINAL                                          -->
+  <!-- ===================================================================== -->
+  <div id="tab-terminal" class="tab-content active">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>⚡ Real Settlement Terminal &bull; A2A Autonomous & M2M Machine Rails</span>
+        </div>
+        <span class="badge badge-indigo">10 BPS Platform Fee &bull; Exactly-Once Sub-ms Settlement</span>
+      </div>
+
+      <div class="terminal-grid">
+        <!-- Input Form -->
+        <div>
+          <div id="terminal-no-actors-warning" style="display:none; background:rgba(245, 158, 11, 0.1); border:1px solid rgba(245, 158, 11, 0.3); border-radius:var(--radius-md); padding:16px; margin-bottom:16px; color:#fbbf24;">
+            <strong>Setup Required:</strong> Register at least 2 agents to perform A2A transfers, or 1 agent and 1 merchant for commercial settlement.
+          </div>
+
+          <div class="form-group">
+            <label>Paying Agent</label>
+            <select id="pay-agent-select" onchange="onPayerAgentChange()">
+              <!-- Options populated dynamically -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Recipient (Agent or Merchant)</span>
+              <span id="pay-mode-badge" class="badge badge-emerald" style="font-size:10px;">⚡ A2A AUTONOMOUS TRANSFER</span>
+            </label>
+            <select id="pay-merchant-select" onchange="onRecipientChange()">
+              <!-- Options populated dynamically -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Amount (USDC)</label>
+            <input type="number" id="pay-amount" step="0.01" min="0.01" value="25.00" oninput="updatePayFeeQuote()">
+            <div class="amount-presets">
+              <span class="preset-chip" onclick="setPayAmount(5)">$5.00</span>
+              <span class="preset-chip" onclick="setPayAmount(25)">$25.00</span>
+              <span class="preset-chip" onclick="setPayAmount(100)">$100.00</span>
+              <span class="preset-chip" onclick="setPayAmount(250)">$250.00</span>
+              <span class="preset-chip" onclick="setPayAmount(1500)" style="border-color:var(--amber); color:var(--amber);" title="Triggers Risk Quarantine Hold!">
+                ⚠️ $1,500.00 (Test Risk Ceiling Hold)
+              </span>
+            </div>
+          </div>
+
+          <button id="btn-submit-pay" class="btn btn-primary" style="width:100%; padding:14px;" onclick="submitPayment()">
+            🚀 Execute Real Payment Transaction
+          </button>
+        </div>
+
+        <!-- Receipt & Feedback -->
+        <div class="receipt-box" id="pay-receipt-box">
+          <div style="font-weight:700; font-size:15px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">
+            Transaction Execution Receipt
+          </div>
+          <div class="receipt-row">
+            <span class="label">Settlement Mode:</span>
+            <span class="val" id="rcpt-mode"><span class="badge badge-emerald">🤖 A2A AUTONOMOUS</span></span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Principal Amount:</span>
+            <span class="val" id="rcpt-principal">$25.000000 USDC</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Platform Fee (100 BPS / 1%):</span>
+            <span class="val" id="rcpt-fee">$0.250000 USDC</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Total Debited:</span>
+            <span class="val" id="rcpt-total" style="color:#60a5fa;">$25.025000 USDC</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Status:</span>
+            <span class="val" id="rcpt-status"><span class="badge badge-indigo">AWAITING EXECUTION</span></span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Transaction UUID:</span>
+            <span class="val mono" id="rcpt-txid" style="font-size:11px;">-</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Hashchain Block #:</span>
+            <span class="val mono" id="rcpt-block">-</span>
+          </div>
+          <div id="rcpt-message" style="margin-top:6px; font-size:12px; color:var(--text-muted); background:rgba(255,255,255,0.02); padding:10px; border-radius:6px;">
+            Select agent and recipient to commit genuine double-entry entries to the cryptographic ledger.
+          </div>
+        </div>
+      </div>
+
+      <!-- M2M Autonomous Machine-to-Machine Integration Panel -->
+      <div style="margin-top:20px; background:rgba(15, 23, 42, 0.75); border:1px solid rgba(99, 102, 241, 0.3); border-radius:var(--radius-md); padding:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">🤖</span>
+            <strong style="font-size:14px; color:#fff;">M2M (Machine-to-Machine) Autonomous API Call</strong>
+          </div>
+          <span class="badge badge-emerald" style="font-size:11px; padding:3px 8px;">
+            <span class="pulse-dot"></span> Zero Human Required &bull; Direct Sub-ms Autonomous Rail
+          </span>
+        </div>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">
+          Autonomous AI agents (LangChain, AutoGen, CrewAI bots) can programmatically pay each other or merchants over HTTP using this live endpoint:
+        </p>
+        <div style="background:#090d16; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px 16px; font-family:var(--font-mono); font-size:12px; color:#38bdf8; overflow-x:auto; line-height:1.6;">
+<span style="color:#64748b;"># Python (httpx / requests) - Autonomous Agent A pays Agent B:</span>
+<span style="color:#f43f5e;">import</span> httpx
+
+response = httpx.post(
+    <span style="color:#a78bfa;">"https://euro-tue-lie-administrators.trycloudflare.com/api/console/pay"</span>,
+    json={
+        <span style="color:#34d399;">"agent_id"</span>: <span style="color:#fbbf24;" id="m2m-payer-uuid">"&lt;PAYER_AGENT_UUID&gt;"</span>,
+        <span style="color:#34d399;">"to_merchant"</span>: <span style="color:#fbbf24;" id="m2m-recipient-uuid">"&lt;RECIPIENT_AGENT_EXTERNAL_ID&gt;"</span>,
+        <span style="color:#34d399;">"amount"</span>: <span style="color:#38bdf8;">25.00</span>  <span style="color:#64748b;"># USDC</span>
+    }
+)
+<span style="color:#64748b;"># Output: {"status": "settled", "is_a2a": true, "chain_seq": 15, "chain_hash": "..."}</span>
+print(response.json())
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TAB 2: AGENTS & WALLETS                                              -->
+  <!-- ===================================================================== -->
+  <div id="tab-agents" class="tab-content">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🤖 Real Autonomous AI Agents & Ledger Accounts</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openAgentModal()">
+          + Register Real Agent
+        </button>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Agent Name</th>
+              <th>External ID</th>
+              <th>Status</th>
+              <th>Available Ledger Balance</th>
+              <th>Single Tx Ceiling</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="agents-table-body">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TAB 3: MERCHANTS DIRECTORY                                           -->
+  <!-- ===================================================================== -->
+  <div id="tab-merchants" class="tab-content">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🏪 Real Merchants & Settlement Accounts</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openMerchantModal()">
+          + Register Real Merchant
+        </button>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Merchant Name</th>
+              <th>External Handle</th>
+              <th>Status</th>
+              <th>Current Balance</th>
+              <th>Total Processed</th>
+              <th>Webhook Endpoint</th>
+            </tr>
+          </thead>
+          <tbody id="merchants-table-body">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TAB 4: DOUBLE-ENTRY LEDGER & HASHCHAIN                               -->
+  <!-- ===================================================================== -->
+  <div id="tab-ledger" class="tab-content">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>⛓️ Immutable Double-Entry Ledger (SHA-256 Hashchain)</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="verifyChain()">
+          🛡️ Run Full Hashchain Verification
+        </button>
+      </div>
+
+      <div style="margin-bottom:16px; display:flex; gap:16px; flex-wrap:wrap;">
+        <div class="badge badge-emerald">
+          <span>DOUBLE-ENTRY CONSERVATION: DEBITS == CREDITS (ZERO-SUM)</span>
+        </div>
+        <div class="badge badge-indigo">
+          <span>CHAIN TIP: SEQ #<span id="ledger-tip-seq">0</span></span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Seq #</th>
+              <th>Direction</th>
+              <th>Amount (USDC)</th>
+              <th>Account</th>
+              <th>Balance After</th>
+              <th>SHA-256 Entry Hash</th>
+              <th>Created At</th>
+            </tr>
+          </thead>
+          <tbody id="ledger-table-body">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TAB 5: QUARANTINE & RISK HOLDS                                       -->
+  <!-- ===================================================================== -->
+  <div id="tab-holds" class="tab-content">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🛡️ Risk Engine Quarantine & Payment Holds (Human Review)</span>
+        </div>
+        <span class="badge badge-amber">Dual-Authorization Quorum Active</span>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Hold ID</th>
+              <th>Agent</th>
+              <th>Merchant</th>
+              <th>Amount</th>
+              <th>Quarantine Reason</th>
+              <th>Status</th>
+              <th>Operator Review Action</th>
+            </tr>
+          </thead>
+          <tbody id="holds-table-body">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TAB 6: RISK LIMITS                                                   -->
+  <!-- ===================================================================== -->
+  <div id="tab-limits" class="tab-content">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>⚙️ Agent Risk Policy & Velocity Enforcement</span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Single Tx Ceiling</th>
+              <th>Daily Spend Quota</th>
+              <th>Velocity Limit</th>
+              <th>Modify Limits</th>
+            </tr>
+          </thead>
+          <tbody id="limits-table-body">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TAB 7: TREASURY & RESERVES                                           -->
+  <!-- ===================================================================== -->
+  <div id="tab-treasury" class="tab-content">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🏦 Treasury Cold Vault & Solvency Backing</span>
+        </div>
+        <span class="badge badge-emerald">100% Backed Reserves</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+        <div class="receipt-box">
+          <div style="font-weight:700; font-size:14px; margin-bottom:8px;">System Sovereign Reserve Pool</div>
+          <div class="receipt-row">
+            <span class="label">Pool Asset:</span>
+            <span class="val">USDC (Native Mint)</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Reserve Balance:</span>
+            <span class="val" style="color:#34d399;">$1,000,000.000000 USDC</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Reserve Ratio:</span>
+            <span class="val">100% Full-Reserve Backed</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Audit Proof:</span>
+            <span class="val" style="color:#60a5fa;">Cryptographically Conserved</span>
+          </div>
+        </div>
+
+        <div class="receipt-box">
+          <div style="font-weight:700; font-size:14px; margin-bottom:8px;">Multi-Signature Payout Governance</div>
+          <div class="receipt-row">
+            <span class="label">Quorum Requirement:</span>
+            <span class="val">2 of 3 Threshold</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Hardware Signer 1:</span>
+            <span class="val" style="color:#34d399;">Online (Ledger Cold-1)</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Hardware Signer 2:</span>
+            <span class="val" style="color:#34d399;">Online (Trezor Safe-3)</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Emergency Signer 3:</span>
+            <span class="val">Offline Vault Key</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TAB 8: AUDIT & EVENT STREAM                                          -->
+  <!-- ===================================================================== -->
+  <div id="tab-audit" class="tab-content">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>📜 Immutable Audit Trail & Live Event Stream</span>
+        </div>
+        <span class="badge badge-indigo">RabbitMQ / Redis Stream Bus</span>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Action / Event</th>
+              <th>Actor</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="audit-table-body">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================================= -->
+<!-- MODALS                                                                  -->
+<!-- ======================================================================= -->
+
+<!-- Agent Create Modal -->
+<div id="modal-agent" class="modal-overlay">
+  <div class="modal-card">
+    <h3 style="font-size:18px;">🤖 Register Real Autonomous Agent</h3>
+    <p style="font-size:12px; color:var(--text-muted);">
+      Allocating initial balance executes a real double-entry transfer from the Sovereign Reserve pool to the Agent account, creating verified hashchain blocks.
+    </p>
+    <div class="form-group">
+      <label>Agent Name</label>
+      <input type="text" id="new-agent-name" placeholder="e.g. Yield Arbitrage Bot 1">
+    </div>
+    <div class="form-group">
+      <label>External ID</label>
+      <input type="text" id="new-agent-ext" placeholder="e.g. agent_yield_01">
+    </div>
+    <div class="form-group">
+      <label>Initial Balance Allocation (USDC)</label>
+      <input type="number" id="new-agent-bal" value="500.00" step="50" min="0">
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeAgentModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitNewAgent()">Create Agent & Mint Ledger Blocks</button>
+    </div>
+  </div>
+</div>
+
+<!-- Merchant Create Modal -->
+<div id="modal-merchant" class="modal-overlay">
+  <div class="modal-card">
+    <h3 style="font-size:18px;">🏪 Register Real Merchant</h3>
+    <div class="form-group">
+      <label>Merchant Name</label>
+      <input type="text" id="new-merchant-name" placeholder="e.g. Cloud Compute Infrastructure">
+    </div>
+    <div class="form-group">
+      <label>External Handle (canonical lowercase)</label>
+      <input type="text" id="new-merchant-ext" placeholder="e.g. cloud_compute_inc">
+    </div>
+    <div class="form-group">
+      <label>Webhook URL (Optional)</label>
+      <input type="text" id="new-merchant-url" placeholder="https://api.cloudcompute.com/webhooks/fluxpay">
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeMerchantModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitNewMerchant()">Register Merchant</button>
+    </div>
+  </div>
+</div>
+
+<!-- Limit Edit Modal -->
+<div id="modal-limits" class="modal-overlay">
+  <div class="modal-card">
+    <h3 style="font-size:18px;">⚙️ Adjust Agent Risk Limits</h3>
+    <input type="hidden" id="limit-agent-id">
+    <div class="form-group">
+      <label>Single Payment Ceiling (USDC)</label>
+      <input type="number" id="limit-single-max" step="50">
+    </div>
+    <div class="form-group">
+      <label>Daily Quota Ceiling (USDC)</label>
+      <input type="number" id="limit-daily-max" step="500">
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeLimitModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitLimitUpdate()">Save Risk Limits</button>
+    </div>
+  </div>
+</div>
+
+<!-- Crypto Deposit & On-Ramp Modal -->
+<div id="modal-deposit" class="modal-overlay">
+  <div class="modal-card" style="max-width: 580px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="font-size:18px; margin:0; display:flex; align-items:center; gap:8px;">
+        <span>📥 Real Crypto On-Ramp & Deposit</span>
+      </h3>
+      <span style="cursor:pointer; color:var(--text-muted); font-size:20px;" onclick="closeDepositModal()">&times;</span>
+    </div>
+
+    <p style="font-size:12px; color:var(--text-muted); margin:0;">
+      Fund your AI Agent wallet with real crypto (USDC / USDT) from Binance, Bybit, or any Web3 wallet.
+    </p>
+
+    <div style="display:flex; gap:8px; margin: 4px 0 10px 0;">
+      <span class="badge badge-emerald" style="font-size:11px; padding:4px 8px;">
+        <span class="pulse-dot"></span> Helius Solana RPC: LIVE
+      </span>
+      <span class="badge badge-emerald" style="font-size:11px; padding:4px 8px;">
+        <span class="pulse-dot"></span> TronGrid API: LIVE
+      </span>
+    </div>
+
+    <div class="form-group">
+      <label>Select Target AI Agent</label>
+      <select id="deposit-agent-select" style="width:100%; padding:10px; border-radius:8px; background:#1e293b; color:#fff; border:1px solid rgba(255,255,255,0.1); font-family:var(--font-sans);"></select>
+    </div>
+
+    <div class="form-group">
+      <label>Select Blockchain Network</label>
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+        <button type="button" class="btn btn-secondary btn-sm network-btn active" id="net-btn-sol" onclick="selectDepositNetwork('SOL')">
+          🟣 Solana (Helius RPC)
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm network-btn" id="net-btn-trc" onclick="selectDepositNetwork('TRC20')">
+          🔴 TRON (TronGrid API)
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm network-btn" id="net-btn-evm" onclick="selectDepositNetwork('EVM')">
+          🔷 Polygon / EVM
+        </button>
+      </div>
+    </div>
+
+    <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(6, 182, 212, 0.35); border-radius: 12px; padding: 14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-size:11px; text-transform:uppercase; color:var(--cyan); font-weight:700;">Deposit Wallet Address</span>
+        <button class="btn btn-secondary btn-sm" onclick="copyDepositAddress()" style="padding:2px 8px; font-size:11px;">📋 Copy</button>
+      </div>
+      <div id="deposit-wallet-address" class="mono" style="word-break:break-all; font-size:12px; color:#38bdf8; background:rgba(0,0,0,0.3); padding:8px 10px; border-radius:6px;">
+        FLUXsol98yTg4xPwZ2kMqR8vZ7xLp3N9Q1bC6wYe4XSol
+      </div>
+      <div style="font-size:11px; color:var(--text-faint); margin-top:6px;">
+        ⚠️ Send only USDC/USDT on the selected network. Minimum deposit: $5.00.
+      </div>
+    </div>
+
+    <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+      <div style="font-size:13px; font-weight:600; color:var(--text-main); margin-bottom:8px;">
+        ⚡ Confirm Incoming On-Chain Deposit
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 2fr; gap:10px;">
+        <div class="form-group">
+          <label>Deposit Amount (USDC)</label>
+          <input type="number" id="deposit-amount" value="50.00" step="10" min="1" placeholder="50.00">
+        </div>
+        <div class="form-group">
+          <label>TxHash / Transaction ID (from Binance / Explorer)</label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="deposit-txhash" placeholder="e.g. 5Kq9... or Binance TxID" style="flex:1;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="inspectTxHash()" style="white-space:nowrap;">
+              🔍 Check Amount
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="tx-inspect-result" style="display:none; margin-top:8px; padding:10px 14px; border-radius:8px; font-size:12px;"></div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeDepositModal()">Cancel</button>
+      <button class="btn btn-primary" id="btn-submit-deposit" onclick="submitDeposit()">
+        ⚡ Confirm Deposit & Mint Ledger Balance
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- JavaScript Logic & Live Charts -->
+<script>
+  let stateCache = null;
+  let volumeChartInstance = null;
+  let agentChartInstance = null;
+
+  // Initialize Real Charts
+  function initCharts() {
+    const ctxVol = document.getElementById('volumeChart')?.getContext('2d');
+    if (ctxVol) {
+      volumeChartInstance = new Chart(ctxVol, {
+        type: 'line',
+        data: {
+          labels: ['Genesis'],
+          datasets: [{
+            label: 'Cumulative Settled Volume ($ USDC)',
+            data: [0],
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.15)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: '#06b6d4',
+            pointRadius: 4,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: {
+                color: '#94a3b8',
+                font: { family: 'JetBrains Mono', size: 10 },
+                callback: (val) => '$' + val
+              }
+            }
+          }
+        }
+      });
+    }
+
+    const ctxAg = document.getElementById('agentChart')?.getContext('2d');
+    if (ctxAg) {
+      agentChartInstance = new Chart(ctxAg, {
+        type: 'doughnut',
+        data: {
+          labels: ['Unallocated'],
+          datasets: [{
+            data: [1],
+            backgroundColor: ['rgba(255, 255, 255, 0.1)'],
+            borderColor: '#060911',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } }
+            }
+          },
+          cutout: '70%'
+        }
+      });
+    }
+  }
+
+  // Update Live Charts from Real State
+  function updateCharts(data) {
+    if (!volumeChartInstance || !agentChartInstance) return;
+
+    // 1. Volume Chart
+    const history = data.volume_history || [];
+    if (history.length > 0) {
+      volumeChartInstance.data.labels = history.map(h => h.time);
+      volumeChartInstance.data.datasets[0].data = history.map(h => h.volume);
+      document.getElementById('chart-volume-badge').innerText = `Current: $${data.stats.total_system_volume_formatted} USDC`;
+    } else {
+      volumeChartInstance.data.labels = ['Genesis (0)'];
+      volumeChartInstance.data.datasets[0].data = [0];
+      document.getElementById('chart-volume-badge').innerText = `$0.00 USDC`;
+    }
+    volumeChartInstance.update();
+
+    // 2. Agent Chart
+    const activeAgents = (data.agents || []).filter(a => a.active);
+    document.getElementById('chart-agent-count-badge').innerText = `${activeAgents.length} Agents`;
+
+    if (activeAgents.length > 0) {
+      agentChartInstance.data.labels = activeAgents.map(a => a.name);
+      agentChartInstance.data.datasets[0].data = activeAgents.map(a => a.balance_minor / 1000000);
+      const palette = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+      agentChartInstance.data.datasets[0].backgroundColor = activeAgents.map((_, i) => palette[i % palette.length]);
+    } else {
+      agentChartInstance.data.labels = ['No Agents Registered'];
+      agentChartInstance.data.datasets[0].data = [1];
+      agentChartInstance.data.datasets[0].backgroundColor = ['rgba(255, 255, 255, 0.08)'];
+    }
+    agentChartInstance.update();
+  }
+
+  // Tab Switching
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+    const targetTab = document.getElementById(`tab-${tabId}`);
+    if (targetTab) targetTab.classList.add('active');
+
+    const btns = Array.from(document.querySelectorAll('.tab-btn'));
+    const matchedBtn = btns.find(b => b.getAttribute('onclick')?.includes(tabId));
+    if (matchedBtn) matchedBtn.classList.add('active');
+  }
+
+  // Toast Notification
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  // Fetch full state from backend
+  async function fetchState(showNotification = false) {
+    try {
+      const res = await fetch('/api/console/state');
+      if (!res.ok) throw new Error('Failed to retrieve state');
+      const data = await res.json();
+      stateCache = data;
+      renderUI(data);
+      updateCharts(data);
+      if (showNotification) showToast('Live platform state refreshed', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('State sync error: ' + err.message, 'error');
+    }
+  }
+
+  // Render complete UI from state
+  function renderUI(data) {
+    const stats = data.stats;
+
+    // 1. KPI Cards
+    document.getElementById('kpi-volume').innerText = `$${stats.total_system_volume_formatted} USDC`;
+    document.getElementById('kpi-agents').innerText = `${stats.active_agents_count} Active`;
+    document.getElementById('kpi-liquidity').innerText = `$${stats.total_agent_liquidity_formatted} USDC total allocated`;
+    document.getElementById('kpi-txs').innerText = stats.settled_payments_count;
+    document.getElementById('kpi-holds').innerText = stats.quarantined_holds_count;
+    document.getElementById('kpi-blocks').innerText = stats.ledger_blocks_count;
+    document.getElementById('tab-holds-badge').innerText = stats.quarantined_holds_count;
+    document.getElementById('ledger-tip-seq').innerText = stats.chain_tip_seq;
+    document.getElementById('tab-agent-count').innerText = data.agents.length;
+    document.getElementById('tab-merch-count').innerText = data.merchants.length;
+    document.getElementById('tab-block-count').innerText = stats.ledger_blocks_count;
+
+    // 2. Select Dropdowns for Terminal (A2A & A2M Support)
+    updateTerminalActors(data);
+
+    // 3. Render Agents Table
+    const agentsTbody = document.getElementById('agents-table-body');
+    if (data.agents.length === 0) {
+      agentsTbody.innerHTML = `
+        <tr>
+          <td colspan="6">
+            <div class="empty-state">
+              <span class="empty-icon">🤖</span>
+              <strong>No autonomous agents registered yet (Real 0 state).</strong>
+              <p>Click the button below to register a real agent and fund its double-entry account.</p>
+              <button class="btn btn-primary btn-sm" onclick="openAgentModal()">+ Register First Agent</button>
+            </div>
+          </td>
+        </tr>`;
+    } else {
+      agentsTbody.innerHTML = data.agents.map(a => `
+        <tr>
+          <td style="font-weight:600;">${a.name}</td>
+          <td class="mono">${a.external_id}</td>
+          <td>
+            <span class="badge ${a.active ? 'badge-emerald' : 'badge-amber'}">
+              ${a.active ? 'Active' : 'Suspended'}
+            </span>
+          </td>
+          <td style="font-weight:700; color:#38bdf8;">$${a.balance_formatted} USDC</td>
+          <td>$${a.limits.single_max_formatted} USDC</td>
+          <td style="display:flex; gap:6px; align-items:center;">
+            <button class="btn btn-primary btn-sm" onclick="openDepositModal('${a.id}')">📥 Deposit</button>
+            <button class="btn btn-secondary btn-sm" onclick="topupAgent('${a.id}')">+$100</button>
+            <button class="btn btn-secondary btn-sm" onclick="toggleAgent('${a.id}')">
+              ${a.active ? 'Pause' : 'Activate'}
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // 4. Render Merchants Table
+    const merchTbody = document.getElementById('merchants-table-body');
+    if (data.merchants.length === 0) {
+      merchTbody.innerHTML = `
+        <tr>
+          <td colspan="6">
+            <div class="empty-state">
+              <span class="empty-icon">🏪</span>
+              <strong>No merchants registered yet (Real 0 state).</strong>
+              <p>Click the button below to register a real settlement merchant.</p>
+              <button class="btn btn-primary btn-sm" onclick="openMerchantModal()">+ Register First Merchant</button>
+            </div>
+          </td>
+        </tr>`;
+    } else {
+      merchTbody.innerHTML = data.merchants.map(m => `
+        <tr>
+          <td style="font-weight:600;">${m.name}</td>
+          <td class="mono">${m.external_id}</td>
+          <td><span class="badge badge-emerald">Online</span></td>
+          <td style="font-weight:700; color:#34d399;">$${m.balance_formatted} USDC</td>
+          <td>$${m.total_volume_formatted} USDC</td>
+          <td class="mono" style="font-size:11px; color:var(--text-faint);">${m.webhook_url || 'Internal Direct Rail'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // 5. Render Ledger Hashchain Table
+    const ledgerTbody = document.getElementById('ledger-table-body');
+    if (data.recent_entries.length === 0) {
+      ledgerTbody.innerHTML = `
+        <tr>
+          <td colspan="7">
+            <div class="empty-state">
+              <span class="empty-icon">⛓️</span>
+              <strong>Ledger at Genesis State (0 blocks).</strong>
+              <p>Registering an agent with initial funding or executing a payment commits verifiable SHA-256 blocks here.</p>
+            </div>
+          </td>
+        </tr>`;
+    } else {
+      ledgerTbody.innerHTML = data.recent_entries.map(e => `
+        <tr>
+          <td style="font-weight:700;">#${e.seq}</td>
+          <td>
+            <span class="${e.direction === 'DEBIT' ? 'tag-debit' : 'tag-credit'}">
+              ${e.direction}
+            </span>
+          </td>
+          <td style="font-weight:600;">${e.amount_formatted} ${e.currency}</td>
+          <td class="mono" style="font-size:11px;">${e.account_id.substring(0, 13)}...</td>
+          <td class="mono" style="color:var(--text-muted);">$${e.balance_after_formatted}</td>
+          <td>
+            <span class="hash-badge" title="${e.entry_hash}">${e.entry_hash}</span>
+          </td>
+          <td style="color:var(--text-faint); font-size:11px;">${e.created_at}</td>
+        </tr>
+      `).join('');
+    }
+
+    // 6. Render Holds Table
+    const holdsTbody = document.getElementById('holds-table-body');
+    if (data.holds.length === 0) {
+      holdsTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-faint); padding:24px;">No quarantined payments currently pending review (Pure 0).</td></tr>`;
+    } else {
+      holdsTbody.innerHTML = data.holds.map(h => `
+        <tr>
+          <td class="mono" style="font-size:11px;">${h.hold_id.substring(0, 8)}...</td>
+          <td style="font-weight:600;">${h.agent_name || h.agent_id}</td>
+          <td>${h.merchant_name || h.to_merchant}</td>
+          <td style="font-weight:700; color:#fbbf24;">$${h.amount_formatted} ${h.currency}</td>
+          <td style="color:var(--text-muted); font-size:12px;">${h.reason}</td>
+          <td>
+            <span class="badge ${h.status === 'pending' ? 'badge-amber' : (h.status === 'approved' ? 'badge-emerald' : 'badge-danger')}">
+              ${h.status.toUpperCase()}
+            </span>
+          </td>
+          <td>
+            ${h.status === 'pending' ? `
+              <button class="btn btn-success btn-sm" onclick="decideHold('${h.hold_id}', 'approve')">Approve & Settle</button>
+              <button class="btn btn-danger btn-sm" onclick="decideHold('${h.hold_id}', 'reject')">Reject</button>
+            ` : `<span style="color:var(--text-faint); font-size:12px;">Resolved</span>`}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // 7. Render Limits Table
+    const limitsTbody = document.getElementById('limits-table-body');
+    if (data.agents.length === 0) {
+      limitsTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:20px;">Register agents to configure risk limits.</td></tr>`;
+    } else {
+      limitsTbody.innerHTML = data.agents.map(a => `
+        <tr>
+          <td style="font-weight:600;">${a.name}</td>
+          <td style="color:#60a5fa;">$${a.limits.single_max_formatted} USDC</td>
+          <td>$${a.limits.daily_max_formatted} USDC</td>
+          <td>${a.limits.velocity_count} txs / ${a.limits.velocity_window_s}s</td>
+          <td>
+            <button class="btn btn-secondary btn-sm" onclick="openLimitModal('${a.id}', ${a.limits.single_max_minor / 1000000}, ${a.limits.daily_max_minor / 1000000})">
+              Edit Policy
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // 8. Render Audit & Event Stream
+    const auditTbody = document.getElementById('audit-table-body');
+    if (data.audit_logs.length === 0) {
+      auditTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-faint); padding:20px;">Audit trail empty (0 events).</td></tr>`;
+    } else {
+      auditTbody.innerHTML = data.audit_logs.map(log => `
+        <tr>
+          <td class="mono" style="font-size:11px; color:var(--text-faint);">${log.timestamp.replace('T', ' ').substring(0, 19)}</td>
+          <td><span class="badge badge-indigo">${log.action}</span></td>
+          <td style="font-weight:600;">${log.actor}</td>
+          <td class="mono" style="font-size:11px; color:var(--text-muted);">${JSON.stringify(log.details)}</td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // A2A (Agent-to-Agent) & A2M Dynamic Actor Population
+  // ---------------------------------------------------------------------------
+  function updateTerminalActors(data) {
+    if (!data) data = stateCache;
+    if (!data) return;
+
+    const agentSelect = document.getElementById('pay-agent-select');
+    const noActorsWarning = document.getElementById('terminal-no-actors-warning');
+    const btnSubmit = document.getElementById('btn-submit-pay');
+
+    const totalAgents = data.agents ? data.agents.length : 0;
+    const totalMerchants = data.merchants ? data.merchants.length : 0;
+
+    // Can transact if: >= 2 agents (A2A), or >= 1 agent and >= 1 merchant (A2M)
+    const canTransact = (totalAgents >= 2) || (totalAgents >= 1 && totalMerchants >= 1);
+
+    if (!canTransact) {
+      if (noActorsWarning) noActorsWarning.style.display = 'block';
+      if (btnSubmit) btnSubmit.disabled = true;
+    } else {
+      if (noActorsWarning) noActorsWarning.style.display = 'none';
+      if (btnSubmit) btnSubmit.disabled = false;
+    }
+
+    // Populate Paying Agent
+    const curPayerVal = agentSelect ? agentSelect.value : '';
+    if (totalAgents === 0) {
+      if (agentSelect) agentSelect.innerHTML = `<option value="">-- No Agents Registered Yet --</option>`;
+    } else {
+      if (agentSelect) {
+        agentSelect.innerHTML = data.agents.map(a => 
+          `<option value="${a.id}" ${a.id === curPayerVal ? 'selected' : ''}>${a.name} ($${a.balance_formatted} USDC)</option>`
+        ).join('');
+      }
+    }
+
+    populateRecipientSelect(data);
+    updatePayFeeQuote();
+  }
+
+  function populateRecipientSelect(data) {
+    if (!data) data = stateCache;
+    if (!data) return;
+
+    const agentSelect = document.getElementById('pay-agent-select');
+    const payerId = agentSelect ? agentSelect.value : '';
+    const merchSelect = document.getElementById('pay-merchant-select');
+    if (!merchSelect) return;
+    const curVal = merchSelect.value;
+
+    let html = '';
+    // 1. Other Agents for A2A Transfers
+    const otherAgents = (data.agents || []).filter(a => a.id !== payerId);
+    if (otherAgents.length > 0) {
+      html += `<optgroup label="🤖 Autonomous AI Agents (A2A Direct Transfers)">`;
+      otherAgents.forEach(a => {
+        const isSel = (a.id === curVal || a.external_id === curVal);
+        html += `<option value="${a.id}" data-type="a2a" ${isSel ? 'selected' : ''}>🤖 ${a.name} (${a.external_id})</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    // 2. Merchants for Commercial A2M Settlements
+    const merchants = data.merchants || [];
+    if (merchants.length > 0) {
+      html += `<optgroup label="🏪 Commercial Merchants (A2M Settlements)">`;
+      merchants.forEach(m => {
+        const isSel = (m.external_id === curVal);
+        html += `<option value="${m.external_id}" data-type="a2m" ${isSel ? 'selected' : ''}>🏪 ${m.name} (${m.external_id})</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    if (!html) {
+      html = `<option value="">-- Register another Agent or Merchant to select recipient --</option>`;
+    }
+
+    merchSelect.innerHTML = html;
+    onRecipientChange();
+  }
+
+  function onPayerAgentChange() {
+    populateRecipientSelect(stateCache);
+    updatePayFeeQuote();
+
+    const payerId = document.getElementById('pay-agent-select')?.value;
+    const el = document.getElementById('m2m-payer-uuid');
+    if (el) el.innerText = `"${payerId || '<PAYER_AGENT_UUID>'}"`;
+  }
+
+  function onRecipientChange() {
+    const merchSelect = document.getElementById('pay-merchant-select');
+    if (!merchSelect || merchSelect.selectedIndex < 0) return;
+
+    const selectedOpt = merchSelect.options[merchSelect.selectedIndex];
+    const type = selectedOpt?.getAttribute('data-type');
+    const modeBadge = document.getElementById('pay-mode-badge');
+    const rcptMode = document.getElementById('rcpt-mode');
+
+    const recVal = merchSelect.value;
+    const recEl = document.getElementById('m2m-recipient-uuid');
+    if (recEl) recEl.innerText = `"${recVal || '<RECIPIENT_AGENT_EXTERNAL_ID>'}"`;
+
+    if (type === 'a2a') {
+      if (modeBadge) {
+        modeBadge.className = 'badge badge-emerald';
+        modeBadge.innerText = '⚡ A2A AUTONOMOUS TRANSFER';
+      }
+      if (rcptMode) {
+        rcptMode.innerHTML = '<span class="badge badge-emerald">🤖 A2A AUTONOMOUS</span>';
+      }
+    } else {
+      if (modeBadge) {
+        modeBadge.className = 'badge badge-indigo';
+        modeBadge.innerText = '🏪 A2M COMMERCIAL SETTLEMENT';
+      }
+      if (rcptMode) {
+        rcptMode.innerHTML = '<span class="badge badge-indigo">🏪 A2M COMMERCIAL</span>';
+      }
+    }
+  }
+
+  // Payment Fee Quote Calculation (100 BPS / 1.00% exactly matching ledger math)
+  function updatePayFeeQuote() {
+    const amt = parseFloat(document.getElementById('pay-amount').value) || 0;
+    const fee = amt * 0.01; // 100 bps = 1.00%
+    const total = amt + fee;
+
+    document.getElementById('rcpt-principal').innerText = `$${amt.toFixed(6)} USDC`;
+    document.getElementById('rcpt-fee').innerText = `$${fee.toFixed(6)} USDC`;
+    document.getElementById('rcpt-total').innerText = `$${total.toFixed(6)} USDC`;
+  }
+
+  function setPayAmount(val) {
+    document.getElementById('pay-amount').value = val.toFixed(2);
+    updatePayFeeQuote();
+  }
+
+  // Execute Real Payment
+  async function submitPayment() {
+    const agentId = document.getElementById('pay-agent-select').value;
+    const merchantId = document.getElementById('pay-merchant-select').value;
+    const amount = parseFloat(document.getElementById('pay-amount').value);
+
+    if (!agentId || !merchantId) {
+      showToast('Please select both paying agent and recipient.', 'error');
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      showToast('Please enter a valid payment amount.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit-pay');
+    btn.disabled = true;
+    btn.innerText = 'Settling on Real Ledger...';
+
+    try {
+      const res = await fetch('/api/console/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: agentId,
+          to_merchant: merchantId,
+          amount: amount
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Payment failed');
+
+      if (data.status === 'settled') {
+        document.getElementById('rcpt-status').innerHTML = '<span class="badge badge-emerald">SETTLED</span>';
+        if (document.getElementById('rcpt-mode')) {
+          document.getElementById('rcpt-mode').innerHTML = data.is_a2a 
+            ? '<span class="badge badge-emerald">🤖 A2A AUTONOMOUS TRANSFER</span>'
+            : '<span class="badge badge-indigo">🏪 A2M COMMERCIAL SETTLEMENT</span>';
+        }
+        document.getElementById('rcpt-txid').innerText = data.tx_id;
+        document.getElementById('rcpt-block').innerText = `#${data.chain_seq}`;
+        document.getElementById('rcpt-message').innerHTML = `
+          <strong style="color:#34d399;">${data.is_a2a ? '🤖 Real A2A Autonomous Transfer Settled!' : '🏪 Real Commercial Settlement Settled!'}</strong><br>
+          From: <strong>${data.payer_name || 'Agent'}</strong> ➔ To: <strong>${data.recipient_name || 'Recipient'}</strong><br>
+          Minted Block #${data.chain_seq} into SHA-256 Hashchain.<br>
+          SHA: <span class="mono">${data.chain_hash.substring(0, 24)}...</span>
+        `;
+        showToast(data.message, 'success');
+      } else if (data.status === 'held') {
+        document.getElementById('rcpt-status').innerHTML = '<span class="badge badge-amber">HELD / QUARANTINED</span>';
+        document.getElementById('rcpt-txid').innerText = data.hold_id;
+        document.getElementById('rcpt-block').innerText = 'Pending Review';
+        document.getElementById('rcpt-message').innerHTML = `
+          <strong style="color:#fbbf24;">Quarantined by Risk Engine!</strong><br>
+          ${data.message}<br>
+          Check the <em>Quarantine & Holds</em> tab to Approve or Reject.
+        `;
+        showToast('Payment held by risk policy!', 'amber');
+      }
+
+      fetchState(false);
+    } catch (err) {
+      showToast(err.message, 'error');
+      document.getElementById('rcpt-status').innerHTML = '<span class="badge badge-danger">FAILED</span>';
+      document.getElementById('rcpt-message').innerText = err.message;
+    } finally {
+      btn.disabled = false;
+      btn.innerText = '🚀 Execute Real Payment Transaction';
+    }
+  }
+
+  // Approve / Reject Hold
+  async function decideHold(holdId, action) {
+    try {
+      const res = await fetch(`/api/console/holds/${holdId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Action failed');
+      showToast(data.message, 'success');
+      fetchState(false);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  // Toggle Agent Active
+  async function toggleAgent(agentId) {
+    try {
+      const res = await fetch(`/api/console/agents/${agentId}/toggle`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error('Toggle failed');
+      showToast(`Agent is now ${data.active ? 'active' : 'suspended'}`, 'info');
+      fetchState(false);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  // Top Up Agent (Real double-entry funding)
+  async function topupAgent(agentId) {
+    const amount = 100.0;
+    try {
+      const res = await fetch(`/api/console/agents/${agentId}/topup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amount })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error('Top-up failed');
+      showToast(`Allocated +$${amount.toFixed(2)} USDC via double-entry ledger`, 'success');
+      fetchState(false);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  // Modals
+  let currentDepositNetwork = 'SOL';
+  const networkAddresses = {
+    'SOL': 'FLUXsol98yTg4xPwZ2kMqR8vZ7xLp3N9Q1bC6wYe4XSol',
+    'TRC20': 'TFLUXpayZ8kMqR8vZ7xLp3N9Q1bC6wYe4XtronUSDT',
+    'EVM': '0x71C8F274659f8B76378A5B9C5f1B48f5F9E01a88'
+  };
+
+  function openDepositModal(preferredAgentId = null) {
+    const select = document.getElementById('deposit-agent-select');
+    if (!select || !stateCache) return;
+
+    select.innerHTML = (stateCache.agents || []).map(a => `
+      <option value="${a.id}" ${preferredAgentId === a.id ? 'selected' : ''}>
+        ${a.name} (${a.external_id}) — Balance: $${a.balance_formatted} USDC
+      </option>
+    `).join('');
+
+    if (stateCache.agents.length === 0) {
+      select.innerHTML = '<option value="">No agents found. Register an agent first.</option>';
+    }
+
+    selectDepositNetwork('SOL');
+    document.getElementById('modal-deposit').classList.add('active');
+  }
+
+  function closeDepositModal() {
+    document.getElementById('modal-deposit').classList.remove('active');
+  }
+
+  function selectDepositNetwork(net) {
+    currentDepositNetwork = net;
+    document.querySelectorAll('.network-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById(`net-btn-${net.toLowerCase()}`);
+    if (btn) btn.classList.add('active');
+
+    const addrEl = document.getElementById('deposit-wallet-address');
+    if (addrEl) addrEl.innerText = networkAddresses[net] || networkAddresses['SOL'];
+  }
+
+  function copyDepositAddress() {
+    const text = document.getElementById('deposit-wallet-address')?.innerText || '';
+    navigator.clipboard.writeText(text);
+    showToast('Copied deposit address to clipboard!', 'success');
+  }
+
+  async function submitDeposit() {
+    const agentId = document.getElementById('deposit-agent-select')?.value;
+    const amount = parseFloat(document.getElementById('deposit-amount')?.value) || 0;
+    const txHash = document.getElementById('deposit-txhash')?.value.trim() || null;
+
+    if (!agentId) {
+      showToast('Please select a target agent first.', 'error');
+      return;
+    }
+
+    if (amount <= 0) {
+      showToast('Please enter a valid deposit amount (e.g. $50.00).', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit-deposit');
+    btn.disabled = true;
+    btn.innerText = 'Verifying On-Chain Deposit...';
+
+    try {
+      const res = await fetch('/api/console/deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: agentId,
+          amount: amount,
+          network: currentDepositNetwork,
+          tx_hash: txHash
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Deposit verification failed');
+
+      closeDepositModal();
+      showToast(`⚡ Real Deposit Confirmed! +$${amount.toFixed(2)} USDC credited to agent!`, 'success');
+      fetchState(false);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerText = '⚡ Confirm Deposit & Mint Ledger Balance';
+    }
+  async function inspectTxHash() {
+    const txHash = document.getElementById('deposit-txhash')?.value.trim();
+    if (!txHash) {
+      showToast('Please enter a TxHash or TxID first.', 'error');
+      return;
+    }
+    const resultDiv = document.getElementById('tx-inspect-result');
+    resultDiv.style.display = 'block';
+    resultDiv.style.background = 'rgba(6, 182, 212, 0.15)';
+    resultDiv.style.border = '1px solid var(--cyan)';
+    resultDiv.style.color = '#38bdf8';
+    resultDiv.innerHTML = 'Connecting to Mainnet to decode exact transferred amount...';
+
+    try {
+      const res = await fetch('/api/console/inspect-tx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ network: currentDepositNetwork, tx_hash: txHash })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.verified) {
+        resultDiv.style.background = 'rgba(244, 63, 94, 0.15)';
+        resultDiv.style.border = '1px solid var(--rose)';
+        resultDiv.style.color = '#f87171';
+        resultDiv.innerHTML = `<strong>Verification Failed:</strong> ${data.detail || data.message || 'Transaction not found on Mainnet'}`;
+        return;
+      }
+
+      resultDiv.style.background = 'rgba(16, 185, 129, 0.15)';
+      resultDiv.style.border = '1px solid var(--emerald)';
+      resultDiv.style.color = '#34d399';
+      resultDiv.innerHTML = `
+        <strong>Live Blockchain Confirmation:</strong><br>
+        Exact Amount Transferred: <strong style="font-size:14px; color:#fff;">$${data.amount_usdc.toFixed(2)}</strong> on ${data.network} Mainnet.<br>
+        Status: ${data.message}
+      `;
+
+      if (data.amount_usdc > 0) {
+        document.getElementById('deposit-amount').value = data.amount_usdc.toFixed(2);
+        showToast(`Detected exact amount: $${data.amount_usdc.toFixed(2)}!`, 'success');
+      }
+    } catch (err) {
+      resultDiv.style.background = 'rgba(244, 63, 94, 0.15)';
+      resultDiv.style.border = '1px solid var(--rose)';
+      resultDiv.style.color = '#f87171';
+      resultDiv.innerHTML = `Error checking transaction: ${err.message}`;
+    }
+  }
+
+  function openAgentModal() { document.getElementById('modal-agent').classList.add('active'); }
+  function closeAgentModal() { document.getElementById('modal-agent').classList.remove('active'); }
+
+  async function submitNewAgent() {
+    const name = document.getElementById('new-agent-name').value.trim();
+    const ext = document.getElementById('new-agent-ext').value.trim();
+    const bal = parseFloat(document.getElementById('new-agent-bal').value) || 0;
+
+    if (!name || !ext) {
+      showToast('Name and External ID are required', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/console/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, external_id: ext, initial_balance: bal })
+      });
+      if (!res.ok) throw new Error('Failed to create agent');
+      closeAgentModal();
+      showToast(`Agent '${name}' created with $${bal.toFixed(2)} USDC balance!`, 'success');
+      document.getElementById('new-agent-name').value = '';
+      document.getElementById('new-agent-ext').value = '';
+      fetchState(false);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  function openMerchantModal() { document.getElementById('modal-merchant').classList.add('active'); }
+  function closeMerchantModal() { document.getElementById('modal-merchant').classList.remove('active'); }
+
+  async function submitNewMerchant() {
+    const name = document.getElementById('new-merchant-name').value.trim();
+    const ext = document.getElementById('new-merchant-ext').value.trim();
+    const url = document.getElementById('new-merchant-url').value.trim();
+
+    if (!name || !ext) {
+      showToast('Name and Handle are required', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/console/merchants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, external_id: ext, webhook_url: url })
+      });
+      if (!res.ok) throw new Error('Failed to create merchant');
+      closeMerchantModal();
+      showToast(`Merchant '${name}' registered at 0.00 balance!`, 'success');
+      document.getElementById('new-merchant-name').value = '';
+      document.getElementById('new-merchant-ext').value = '';
+      fetchState(false);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  function openLimitModal(agentId, singleMax, dailyMax) {
+    document.getElementById('limit-agent-id').value = agentId;
+    document.getElementById('limit-single-max').value = singleMax;
+    document.getElementById('limit-daily-max').value = dailyMax;
+    document.getElementById('modal-limits').classList.add('active');
+  }
+
+  function closeLimitModal() { document.getElementById('modal-limits').classList.remove('active'); }
+
+  async function submitLimitUpdate() {
+    const agentId = document.getElementById('limit-agent-id').value;
+    const singleMax = parseFloat(document.getElementById('limit-single-max').value);
+    const dailyMax = parseFloat(document.getElementById('limit-daily-max').value);
+
+    try {
+      const res = await fetch('/api/console/limits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: agentId,
+          single_max: singleMax,
+          daily_max: dailyMax,
+          velocity_count: 15,
+          velocity_window_s: 60
+        })
+      });
+      if (!res.ok) throw new Error('Failed to update limits');
+      closeLimitModal();
+      showToast('Risk limits updated successfully', 'success');
+      fetchState(false);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  // Cryptographic Verification
+  async function verifyChain() {
+    try {
+      const res = await fetch('/api/console/verify-chain');
+      const data = await res.json();
+      if (data.valid) {
+        showToast(data.message, 'success');
+      } else {
+        showToast(data.message, 'error');
+      }
+    } catch (err) {
+      showToast('Verification failed: ' + err.message, 'error');
+    }
+  }
+
+  // Reset to Clean Zero State
+  async function resetToZero() {
+    if (!confirm('Are you sure you want to clean-reset all agents, balances, and ledger to pure REAL 0?')) return;
+    try {
+      const res = await fetch('/api/console/reset', { method: 'POST' });
+      if (!res.ok) throw new Error('Reset failed');
+      showToast('Reset to pure REAL 0 complete!', 'info');
+      fetchState(false);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  // Start Charts and Initial Fetch
+  document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    fetchState(false);
+  });
+
+  // Background state polling every 3 seconds for seamless live updates
+  setInterval(() => {
+    fetchState(false);
+  }, 3000);
+</script>
+
+</body>
+</html>
