@@ -25,7 +25,7 @@ dependencies = [
     "prometheus-client>=0.21.0,<1.0.0", # Native Prometheus metrics exposition for latency, throughput, and payment counters
     "sentry-sdk[fastapi]>=2.20.0,<3.0.0", # Error tracking, performance monitoring, and exception alerting for FastAPI
     "pyjwt[crypto]>=2.9.0,<3.0.0", # Audited JWT parsing and cryptographic signature verification for Keycloak admin plane
-    "web3>=7.0.0,<8.0.0", # Battle-tested EVM RPC, ABI encoding, and keccak hashing for Base L2 on-chain observation
+    "web3>=7.0.0,<9.0.0", # Battle-tested EVM RPC, ABI encoding, and keccak hashing for Base L2 on-chain observation
     "jinja2>=3.1.0,<4.0.0", # Audited server-rendered template engine for zero-node zero-SPA admin dashboard
 ]
 
