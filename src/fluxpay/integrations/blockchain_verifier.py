@@ -218,7 +218,10 @@ async def verify_tron_tx(
                 tx_hash=tx_id,
                 amount_usdc=amount_detected,
                 confirmations=1,
-                message=f"Confirmed on TRON Mainnet via TronGrid API. Amount: ${amount_detected:,.2f} USDT",
+                message=(
+                    f"Confirmed on TRON Mainnet via TronGrid API. "
+                    f"Amount: ${amount_detected:,.2f} USDT"
+                ),
                 raw_data=data,
             )
 

@@ -318,7 +318,7 @@ async def test_second_rail_e2e_dual_monitor_sync(db_pool: asyncpg.Pool) -> None:
         # Monitor run 1: Base rail
         monitor_base = HotWalletMonitor(
             pool=db_pool,
-            reader=reader,  # type: ignore[arg-type]
+            reader=reader,
             alert=_capture_alert,
             rail="base_usdc",
             now=lambda: fixed_now,
@@ -331,7 +331,7 @@ async def test_second_rail_e2e_dual_monitor_sync(db_pool: asyncpg.Pool) -> None:
         # Monitor run 2: Ethereum rail
         monitor_eth = HotWalletMonitor(
             pool=db_pool,
-            reader=reader,  # type: ignore[arg-type]
+            reader=reader,
             alert=_capture_alert,
             rail="ethereum_usdc",
             now=lambda: fixed_now,
@@ -417,7 +417,7 @@ async def test_cold_payout_confirmation_ethereum_rail_finality_knob(
         async def _capture_alert(msg: str, rail: str = "unknown") -> None:
             alerts.append(f"{rail}: {msg}")
 
-        service = PayoutService(pool=db_pool, reader=reader, alert=_capture_alert)  # type: ignore[arg-type]
+        service = PayoutService(pool=db_pool, reader=reader, alert=_capture_alert)
 
         # 1. Request payout on ethereum_usdc
         payout = await service.request(

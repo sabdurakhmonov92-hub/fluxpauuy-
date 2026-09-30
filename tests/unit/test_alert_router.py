@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 import pytest
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from fluxpay.alerts.router import (
     AlertRouter,

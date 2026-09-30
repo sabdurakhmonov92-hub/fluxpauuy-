@@ -67,6 +67,7 @@ strict = true # Enforce absolute type safety across all codebase modules
 plugins = ["pydantic.mypy"] # Enable deep Pydantic V2 model validation and schema type inference
 files = ["src", "tests"] # Typecheck both production code and test suites to prevent test decay
 warn_unreachable = true # Flag dead code paths and impossible conditional branches
+mypy_path = ["src", "sdk/python"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto" # Automatically discover and run async test coroutines without explicit decorators
@@ -80,6 +81,7 @@ markers = [
     "unit: Unit tests verifying isolated domain invariants without external I/O", # Fast, isolated in-memory tests
     "integration: Integration tests exercising external databases, brokers, and networks", # Slower tests requiring services
     "throughput: sustained-write ledger smoke (local/nightly, excluded from CI default)",
+    "aws: Opt-in AWS KMS integration tests requiring live AWS credentials or LocalStack",
 ]
 testpaths = ["tests"] # Restrict test collection root to the tests directory
 

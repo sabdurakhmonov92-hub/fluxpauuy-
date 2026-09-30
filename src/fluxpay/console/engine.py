@@ -69,7 +69,7 @@ class UnifiedConsoleEngine:
         # Real Cumulative Volume Tracking
         self.total_settled_volume_minor: int = 0
 
-        # Volume history for real-time graphics: list of {"time": str, "volume": float, "tx_id": str}
+        # Volume history for charts: list of {"time": str, "volume": float, "tx_id": str}
         self.volume_history: list[dict[str, Any]] = []
 
         # Cold Vault Reserves: Real reserve tracking
@@ -156,9 +156,13 @@ class UnifiedConsoleEngine:
                     "created_at": data["created_at"],
                     "limits": {
                         "single_max_minor": limits_obj.max_single_tx_minor,
-                        "single_max_formatted": f"{limits_obj.max_single_tx_minor / 1_000_000:,.2f}",
+                        "single_max_formatted": (
+                            f"{limits_obj.max_single_tx_minor / 1_000_000:,.2f}"
+                        ),
                         "daily_max_minor": limits_obj.daily_outflow_cap_minor,
-                        "daily_max_formatted": f"{limits_obj.daily_outflow_cap_minor / 1_000_000:,.2f}",
+                        "daily_max_formatted": (
+                            f"{limits_obj.daily_outflow_cap_minor / 1_000_000:,.2f}"
+                        ),
                         "velocity_count": limits_obj.velocity_limit,
                         "velocity_window_s": limits_obj.velocity_window_s,
                     },
@@ -184,7 +188,9 @@ class UnifiedConsoleEngine:
                     "balance_minor": bal_minor,
                     "balance_formatted": f"{bal_minor / 1_000_000:,.6f}",
                     "total_volume_minor": data.get("total_volume_minor", 0),
-                    "total_volume_formatted": f"{data.get('total_volume_minor', 0) / 1_000_000:,.6f}",
+                    "total_volume_formatted": (
+                        f"{data.get('total_volume_minor', 0) / 1_000_000:,.6f}"
+                    ),
                     "created_at": data["created_at"],
                 }
             )
@@ -206,7 +212,7 @@ class UnifiedConsoleEngine:
                     "version": e.version,
                     "entry_hash": e.entry_hash,
                     "prev_hash": e.prev_hash,
-                    "created_at": e.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                    "created_at": str(e.created_at),
                 }
             )
 
@@ -267,7 +273,7 @@ class UnifiedConsoleEngine:
         external_id: str,
         initial_balance_usdc: float = 0.0,
     ) -> dict[str, Any]:
-        """Register a new autonomous agent and fund balance via real double-entry ledger allocation."""
+        """Register a new autonomous agent and fund balance via ledger allocation."""
         async with self._lock:
             agent_id = uuid4()
             acc_id = uuid4()
@@ -334,7 +340,7 @@ class UnifiedConsoleEngine:
                     version=sys_ver,
                     prev_hash=self.last_hash,
                     entry_hash=fp1_hash,
-                    created_at=now_dt,
+                    created_at=now_str,
                 )
                 self.last_hash = fp1_hash
                 self.entries.append(entry1)
@@ -367,7 +373,7 @@ class UnifiedConsoleEngine:
                     version=2,
                     prev_hash=self.last_hash,
                     entry_hash=fp2_hash,
-                    created_at=now_dt,
+                    created_at=now_str,
                 )
                 self.last_hash = fp2_hash
                 self.entries.append(entry2)
@@ -438,7 +444,7 @@ class UnifiedConsoleEngine:
                 version=sys_ver,
                 prev_hash=self.last_hash,
                 entry_hash=fp1_hash,
-                created_at=now_dt,
+                created_at=now_str,
             )
             self.last_hash = fp1_hash
             self.entries.append(entry1)
@@ -474,7 +480,7 @@ class UnifiedConsoleEngine:
                 version=ag_ver,
                 prev_hash=self.last_hash,
                 entry_hash=fp2_hash,
-                created_at=now_dt,
+                created_at=now_str,
             )
             self.last_hash = fp2_hash
             self.entries.append(entry2)
@@ -572,12 +578,17 @@ class UnifiedConsoleEngine:
             # 2. Check merchants if not an agent
             if not is_a2a:
                 if to_merchant not in self.merchants:
-                    raise ValueError(f"Recipient '{to_merchant}' not found among Agents or Merchants.")
+                    raise ValueError(
+                        f"Recipient '{to_merchant}' not found among Agents or Merchants."
+                    )
                 merchant_data = self.merchants[to_merchant]
                 if not merchant_data["active"]:
                     raise ValueError(f"Merchant '{merchant_data['name']}' is currently inactive.")
                 recipient_acc_ref = self.merchant_accounts[to_merchant]
                 recipient_display_name = merchant_data["name"]
+
+            if recipient_acc_ref is None:
+                raise ValueError("Recipient account reference could not be resolved.")
 
             if amount_minor <= 0:
                 raise ValueError("Payment amount must be greater than zero.")
@@ -601,7 +612,8 @@ class UnifiedConsoleEngine:
                     "currency": currency,
                     "reason": (
                         f"Ceiling exceeded: requested {amount_minor / 1_000_000:,.2f} {currency} "
-                        f"exceeds single limit ({agent_limit.max_single_tx_minor / 1_000_000:,.2f} {currency})"
+                        f"exceeds limit ({agent_limit.max_single_tx_minor / 1_000_000:,.2f} "
+                        f"{currency})"
                     ),
                     "status": "pending",
                     "created_at": datetime.now(UTC).isoformat(),
@@ -630,7 +642,10 @@ class UnifiedConsoleEngine:
                 return {
                     "status": "held",
                     "hold_id": str(hold_id),
-                    "message": "Payment quarantined by Risk Engine (Exceeds Single Transaction Limit). Sent to Holds for Operator Review.",
+                    "message": (
+                        "Payment quarantined by Risk Engine (Exceeds Single Transaction Limit). "
+                        "Sent to Holds for Operator Review."
+                    ),
                     "amount_formatted": f"{amount_minor / 1_000_000:,.6f} {currency}",
                 }
 
@@ -642,8 +657,9 @@ class UnifiedConsoleEngine:
             current_agent_bal = self.accounts[agent_acc_ref.account_id]["balance"]
             if current_agent_bal < total_debit:
                 raise ValueError(
-                    f"Insufficient funds: available {current_agent_bal / 1_000_000:,.2f} {currency}, "
-                    f"required {total_debit / 1_000_000:,.2f} {currency} (includes {fee_quote.fee_minor / 1_000_000:,.6f} fee)"
+                    f"Insufficient funds: available {current_agent_bal / 1_000_000:,.2f} "
+                    f"{currency}, required {total_debit / 1_000_000:,.2f} {currency} "
+                    f"(includes {fee_quote.fee_minor / 1_000_000:,.6f} fee)"
                 )
 
             # 5. Apply double-entry legs to ledger
@@ -681,7 +697,7 @@ class UnifiedConsoleEngine:
                 version=agent_ver,
                 prev_hash=self.last_hash,
                 entry_hash=fp1_hash,
-                created_at=now_dt,
+                created_at=now_str,
             )
             self.last_hash = fp1_hash
             self.entries.append(entry1)
@@ -717,7 +733,7 @@ class UnifiedConsoleEngine:
                 version=rec_ver,
                 prev_hash=self.last_hash,
                 entry_hash=fp2_hash,
-                created_at=now_dt,
+                created_at=now_str,
             )
             self.last_hash = fp2_hash
             self.entries.append(entry2)
@@ -753,7 +769,7 @@ class UnifiedConsoleEngine:
                 version=fees_ver,
                 prev_hash=self.last_hash,
                 entry_hash=fp3_hash,
-                created_at=now_dt,
+                created_at=now_str,
             )
             self.last_hash = fp3_hash
             self.entries.append(entry3)
@@ -815,9 +831,11 @@ class UnifiedConsoleEngine:
                 "chain_hash": self.last_hash,
                 "agent_balance_after": f"{new_agent_bal / 1_000_000:,.6f}",
                 "message": (
-                    f"A2A Autonomous Transfer settled: {agent_data['name']} ➔ {recipient_display_name}! Block #{self.last_seq} committed."
+                    f"A2A Transfer settled: {agent_data['name']} ➔ "
+                    f"{recipient_display_name}! Block #{self.last_seq} committed."
                     if is_a2a
-                    else f"Commercial payment settled: {agent_data['name']} ➔ {recipient_display_name}! Block #{self.last_seq} committed."
+                    else f"Commercial payment settled: {agent_data['name']} ➔ "
+                    f"{recipient_display_name}! Block #{self.last_seq} committed."
                 ),
             }
 
@@ -882,8 +900,7 @@ class UnifiedConsoleEngine:
                 self.total_settled_volume_minor += amount_minor
                 if to_target in self.merchants:
                     self.merchants[to_target]["total_volume_minor"] = (
-                        self.merchants[to_target].get("total_volume_minor", 0)
-                        + amount_minor
+                        self.merchants[to_target].get("total_volume_minor", 0) + amount_minor
                     )
 
                 self._record_audit("hold.approved", "OPERATOR", {"hold_id": str(hold_id)})
@@ -965,7 +982,10 @@ class UnifiedConsoleEngine:
             "total_blocks": len(self.entries),
             "tip_seq": self.last_seq,
             "tip_hash": self.last_hash,
-            "message": f"Cryptographic chain verified 100% valid ({len(self.entries)} blocks). All SHA-256 fingerprints intact.",
+            "message": (
+                f"Cryptographic chain verified 100% valid ({len(self.entries)} blocks). "
+                "All SHA-256 fingerprints intact."
+            ),
         }
 
     def reset_to_zero(self) -> None:

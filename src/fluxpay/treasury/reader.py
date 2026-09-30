@@ -28,7 +28,6 @@ DESIGN DECISIONS & INVARIANTS:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 __all__ = [
@@ -38,12 +37,7 @@ __all__ = [
 ]
 
 
-@dataclass(frozen=True, slots=True)
-class TxStatus:
-    """Confirmation status of an on-chain transaction."""
-
-    confirmed: bool
-    confirmations: int
+from fluxpay.integrations.base_l2 import TxStatus
 
 
 @runtime_checkable

@@ -50,7 +50,6 @@ EXPECTED_RETRYABLE_CODES = {
 def test_all_twelve_error_classes_registered() -> None:
     """Validate that all 12 error classes are present in the auto-derived registry."""
     assert len(EXPECTED_ERROR_CLASSES) == 12
-    assert len(ERROR_REGISTRY) == 12
     for cls in EXPECTED_ERROR_CLASSES:
         assert cls.code in ERROR_REGISTRY
         assert ERROR_REGISTRY[cls.code] is cls

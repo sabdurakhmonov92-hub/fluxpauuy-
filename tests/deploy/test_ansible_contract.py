@@ -329,10 +329,7 @@ def test_nginx_provisioning_contract() -> None:
 
     assert nginx_conf_path.is_file(), f"deploy/nginx/fluxpay.conf missing: {nginx_conf_path}"
     assert "fluxpay.conf" in playbook_text, "playbook.yml must reference fluxpay.conf"
-    assert (
-        "ansible.builtin.copy:" in playbook_text or "ansible.builtin.template:" in playbook_text
-    )
+    assert "ansible.builtin.copy:" in playbook_text or "ansible.builtin.template:" in playbook_text
     assert "fluxpay-active.conf" in playbook_text, (
         "playbook.yml must bootstrap /etc/nginx/fluxpay-active.conf"
     )
-

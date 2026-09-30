@@ -915,8 +915,8 @@ async def gateway_client(
     app, calls = build_gateway_app()
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="https://api.test") as client:
-        client.calls = calls
-        client.app = app
+        client.calls = calls  # type: ignore[attr-defined]
+        client.app = app  # type: ignore[attr-defined]
         yield client
 
 

@@ -42,7 +42,7 @@ import httpx
 import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, ORJSONResponse, Response
+from fastapi.responses import JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest, make_asgi_app, start_http_server
 from redis import asyncio as redis_async
 from starlette.routing import Router
@@ -458,7 +458,6 @@ def create_app(
     app = FastAPI(
         title="FluxPay",
         version=__version__,
-        default_response_class=ORJSONResponse,
         lifespan=lifespan,
         docs_url=docs_url,
         redoc_url=redoc_url,
@@ -538,7 +537,18 @@ def create_app(
 
     # Mount Unified Single-Page Console (All-in-one financial dashboard)
     from fluxpay.console.router import router as console_router
+
     app.include_router(console_router)
+
+    # Mount x402 Payment Protocol Router (Task 1.2)
+    from fluxpay.gateway.x402_router import router as x402_router
+
+    app.include_router(x402_router)
+
+    # Mount Admin Emergency Controls Router (Task 1.2 & 1.5)
+    from fluxpay.admin.emergency_router import router as emergency_router
+
+    app.include_router(emergency_router)
 
     # -------------------------------------------------------------------------
     # Exception Handlers (Platform Wire Dialect Enforcement)
@@ -672,11 +682,83 @@ def create_app(
             media_type="application/json",
         )
 
-    # --- TASK 65 APPEND: HEALTH PROBE (PROCESS LIVENESS FOR SYSTEMD & NGINX) ---
+    # --- HEALTH & OPERATIONAL OBSERVABILITY PROBES ---
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:
         """Process liveness probe for systemd/nginx load balancer health checks."""
         return {"status": "ok", "version": __version__}
+
+    @app.get("/health", include_in_schema=False)
+    async def health_liveness() -> dict[str, Any]:
+        """Process liveness probe for systemd, Docker, and Kubernetes health checks."""
+        return {
+            "status": "ok",
+            "service": "fluxpay",
+            "version": __version__,
+            "network": "base-l2",
+            "chain_id": effective_settings.base_chain_id,
+        }
+
+    @app.get("/ready", include_in_schema=False)
+    async def ready_readiness(request: Request) -> Response:
+        """Deep readiness probe testing connectivity to PostgreSQL and Redis/Valkey."""
+        import json
+
+        checks: dict[str, str] = {}
+        is_ready = True
+
+        pool = getattr(request.app.state, "pool", None)
+        if pool is not None:
+            try:
+                async with pool.acquire() as conn:
+                    await conn.fetchval("SELECT 1")
+                checks["postgres"] = "healthy"
+            except Exception as exc:
+                checks["postgres"] = f"unhealthy: {exc}"
+                is_ready = False
+        else:
+            checks["postgres"] = "uninitialized"
+            is_ready = False
+
+        valkey = getattr(request.app.state, "valkey", None)
+        if valkey is not None:
+            try:
+                await valkey.ping()
+                checks["valkey"] = "healthy"
+            except Exception as exc:
+                checks["valkey"] = f"unhealthy: {exc}"
+                is_ready = False
+        else:
+            checks["valkey"] = "uninitialized"
+            is_ready = False
+
+        status_code = 200 if is_ready else 503
+        payload = {
+            "status": "ready" if is_ready else "degraded",
+            "service": "fluxpay",
+            "version": __version__,
+            "checks": checks,
+        }
+        return Response(
+            content=json.dumps(payload).encode("utf-8"),
+            status_code=status_code,
+            media_type="application/json",
+        )
+
+    @app.get("/version", include_in_schema=False)
+    async def version_endpoint() -> dict[str, Any]:
+        """Expose build version, git SHA, and target blockchain network metadata."""
+        import os
+
+        return {
+            "service": "fluxpay",
+            "version": __version__,
+            "git_sha": os.environ.get("FLX_BUILD_SHA", "production-build"),
+            "build_time": os.environ.get("FLX_BUILD_TIME", "2026-09-30T00:00:00Z"),
+            "network": "base-l2",
+            "chain_id": effective_settings.base_chain_id,
+            "usdc_contract": effective_settings.base_usdc_address,
+        }
 
     # --- Task 69 append: Prometheus /metrics exposition endpoint ---
     @app.get("/metrics", include_in_schema=False)
@@ -688,5 +770,27 @@ def create_app(
     return app
 
 
+def _build_default_app() -> FastAPI:
+    """Build default ASGI app with automated .env discovery and safe local fallback."""
+    import os
+
+    if "FLX_PG_DSN" not in os.environ:
+        with contextlib.suppress(Exception):
+            from dotenv import load_dotenv
+
+            load_dotenv()
+    try:
+        return create_app()
+    except Exception:
+        from fluxpay.config import Settings
+
+        fallback = Settings(
+            pg_dsn="postgresql://fluxpay:fluxpay@localhost:5432/fluxpay",
+            vault_master_key="AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+            webhook_signing_key="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        )
+        return create_app(settings=fallback)
+
+
 # Default singleton application instance for ASGI server runners (Uvicorn / Gunicorn)
-app: FastAPI = create_app()
+app: FastAPI = _build_default_app()

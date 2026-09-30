@@ -71,7 +71,7 @@ import httpx
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import FastAPI
-from fluxpay_sdk import FluxPayClient  # type: ignore[import-not-found]
+from fluxpay_sdk import FluxPayClient
 
 from fluxpay.admin.keycloak import AdminPrincipal
 from fluxpay.config import Settings

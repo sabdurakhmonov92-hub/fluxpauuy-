@@ -417,9 +417,7 @@ class BaseL2Reader(BaseClient):
                 got=got_id,
             )
             raise IntegrationError(
-                message=(
-                    f"Rail '{rail}' chain ID mismatch: expected {cfg.chain_id}, got {got_id}"
-                ),
+                message=(f"Rail '{rail}' chain ID mismatch: expected {cfg.chain_id}, got {got_id}"),
                 details={
                     "phase": "chain_id_mismatch",
                     "expected": str(cfg.chain_id),
@@ -487,7 +485,7 @@ class BaseL2Reader(BaseClient):
             return int(await contract.functions.balanceOf(checksum_address).call())
 
         raw_balance = await self._execute_with_ladder("balance_of", _fetch_balance)
-        return int(raw_balance)
+        return raw_balance
 
     async def read_hot_balance(self, rail: str) -> int:
         """Fetch current on-chain balance of the rail hot wallet in minor units.
@@ -597,6 +595,7 @@ class BaseL2Reader(BaseClient):
             if receipt_confs is not None:
                 confirmations = int(receipt_confs)
             else:
+
                 async def _fetch_block() -> int:
                     block_attr = w3.eth.block_number
                     if callable(block_attr):

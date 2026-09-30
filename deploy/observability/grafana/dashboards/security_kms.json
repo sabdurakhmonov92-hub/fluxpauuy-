@@ -1,0 +1,54 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "panels": [
+    {
+      "title": "Cloud KMS / HSM Sign Latency (p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(flx_kms_sign_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "KMS Sign p99"
+        }
+      ]
+    },
+    {
+      "title": "KMS & Signer Error Frequency",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "increase(flx_kms_errors_total[5m])",
+          "legendFormat": "KMS Errors / 5m"
+        }
+      ]
+    },
+    {
+      "title": "Security Gate Rate Limit Shedding & Replay Rejections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(flx_gate_total{outcome='rate'}[5m])",
+          "legendFormat": "Rate-Limited (429)"
+        },
+        {
+          "expr": "rate(flx_gate_total{outcome='replay'}[5m])",
+          "legendFormat": "Replay Rejections (401)"
+        },
+        {
+          "expr": "rate(flx_gate_total{outcome='quota'}[5m])",
+          "legendFormat": "Daily Quota Exceeded (429)"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["fluxpay", "security", "kms"],
+  "time": { "from": "now-3h", "to": "now" },
+  "title": "FluxPay - Security & Cloud KMS Observability",
+  "uid": "flx-security-kms"
+}

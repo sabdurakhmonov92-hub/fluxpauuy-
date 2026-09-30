@@ -1,0 +1,27 @@
+[Unit]
+Description=FluxPay Production Asynchronous Event & Reconciliation Worker
+After=network.target postgresql.service redis.service rabbitmq-server.service
+Wants=postgresql.service redis.service rabbitmq-server.service
+
+[Service]
+Type=simple
+User=fluxpay
+Group=fluxpay
+WorkingDirectory=/opt/fluxpay
+EnvironmentFile=/etc/fluxpay/fluxpay.env
+ExecStart=/opt/fluxpay/.venv/bin/python -m fluxpay.workers.blockchain_reconciliation
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillMode=mixed
+LimitNOFILE=65536
+
+# Security Hardening Sandbox
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/fluxpay/data /var/log/fluxpay
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

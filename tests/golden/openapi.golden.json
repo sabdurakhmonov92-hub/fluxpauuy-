@@ -5,6 +5,1573 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/admin/holds/{hold_id}/vote": {
+      "post": {
+        "summary": "Vote Hold",
+        "description": "Submit an approval or rejection vote on a quarantined payment hold.\n\nRole Requirement: 'admin' only.\nRequest Body:\n    {\"vote\": \"approve\" | \"reject\", \"note\": \"optional justification\"}\nResponse (200 OK):\n    {\"status\": \"counted\" | \"approved_settled\" | \"rejected\" | \"already_voted\",\n     \"votes_for\": int, \"votes_against\": int}",
+        "operationId": "vote_hold_admin_holds__hold_id__vote_post",
+        "parameters": [
+          {
+            "name": "hold_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hold Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Dashboard Root",
+        "description": "Redirect root dashboard path to the agent management overview.",
+        "operationId": "dashboard_root_dashboard_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/agents": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "List Agents",
+        "description": "List all registered autonomous agents for operator inspection.",
+        "operationId": "list_agents_dashboard_agents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Dashboard Agent",
+        "description": "Provision a new autonomous agent and display its plaintext secret ONCE.\n\nEnforces:\n- Admin-only role check.\n- Input validation (external_id, name, currency, limits).\n- Cache-Control: no-store headers on the response.\n- Zero plaintext secret in database or audit logs.",
+        "operationId": "post_dashboard_agent_dashboard_agents_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/agents/{agent_id}": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Get Agent Statement",
+        "description": "Screen 1: Balance card, cryptographic proof, and keyset-paginated statement.",
+        "operationId": "get_agent_statement_dashboard_agents__agent_id__get",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "before_seq",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before Seq"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/agents/{agent_id}/limits": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Get Agent Limits Page",
+        "description": "Screen: Edit and view agent financial policy limits.",
+        "operationId": "get_agent_limits_page_dashboard_agents__agent_id__limits_get",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Agent Limits",
+        "description": "Update agent policy limits with PRG pattern (303 Redirect) and audit recording.",
+        "operationId": "post_agent_limits_dashboard_agents__agent_id__limits_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/agents/{agent_id}/suspend": {
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Suspend Agent",
+        "description": "Suspend an active agent with cache invalidation and audit recording.",
+        "operationId": "post_suspend_agent_dashboard_agents__agent_id__suspend_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/agents/{agent_id}/activate": {
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Activate Agent",
+        "description": "Activate a suspended agent with cache invalidation and audit recording.",
+        "operationId": "post_activate_agent_dashboard_agents__agent_id__activate_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/merchants": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "List Merchants",
+        "description": "List registered merchants with status and link to webhook destinations.",
+        "operationId": "list_merchants_dashboard_merchants_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Dashboard Merchant",
+        "description": "Provision a new merchant and settlement ledger account.",
+        "operationId": "post_dashboard_merchant_dashboard_merchants_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/merchants/{external_id}/suspend": {
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Suspend Merchant",
+        "description": "Suspend a merchant by external_id handle.",
+        "operationId": "post_suspend_merchant_dashboard_merchants__external_id__suspend_post",
+        "parameters": [
+          {
+            "name": "external_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "External Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/merchants/{merchant_id}/webhooks": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "List Merchant Webhooks",
+        "description": "List configured HTTPS notification endpoints for a merchant.",
+        "operationId": "list_merchant_webhooks_dashboard_merchants__merchant_id__webhooks_get",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Merchant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Dashboard Webhook",
+        "description": "Create a new webhook destination with one-time secret emission.\n\nDirect SQL Insertion Deviation:\nTask 38 defined webhook_endpoints schema without a domain repository.\nWe write directly to SQL with AES-256-GCM vault envelope encryption bound\nto AAD \"webhook_secret:<endpoint_id>\". Phase 2 refactors to NotificationRepo.",
+        "operationId": "post_dashboard_webhook_dashboard_merchants__merchant_id__webhooks_post",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Merchant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/holds": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "List Holds Page",
+        "description": "Operations panel: Review payments held in HITL quarantine queue.",
+        "operationId": "list_holds_page_dashboard_holds_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/holds/{hold_id}/vote": {
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Hold Vote",
+        "description": "Submit approval or rejection vote on a held payment.\n\nEnforces:\n- Admin-only role check (support rejected with 403 page).\n- ApprovalService 2-man quorum rule.\n- HTMX row swap response or PRG redirect.",
+        "operationId": "post_hold_vote_dashboard_holds__hold_id__vote_post",
+        "parameters": [
+          {
+            "name": "hold_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hold Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/kyc": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "List Kyc Page",
+        "description": "Operations panel: Review pending merchant KYC verification requests.",
+        "operationId": "list_kyc_page_dashboard_kyc_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/kyc/{kyc_id}/decide": {
+      "post": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Post Kyc Decision",
+        "description": "Atomically decide a pending KYC request with double-decide guard and audit.",
+        "operationId": "post_kyc_decision_dashboard_kyc__kyc_id__decide_post",
+        "parameters": [
+          {
+            "name": "kyc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Kyc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/audit": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Get Audit Trail Page",
+        "description": "Operations panel: View forensic audit log entries newest-first.\n\nAllowed roles: admin, support (Separation of Duties).",
+        "operationId": "get_audit_trail_page_dashboard_audit_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/treasury": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard_ops"
+        ],
+        "summary": "Get Treasury Page",
+        "description": "Institutional Treasury panel: hot/cold balances, drift, in-flight payouts.\n\nArchitectural Law:\nSTRICTLY READ-ONLY ON WEB. Treasury payouts require two-person cryptographic\nauthorization executed exclusively through the operator CLI:\n    python -m fluxpay.treasury.cli vote --payout-id <id> --vote approve",
+        "operationId": "get_treasury_page_dashboard_treasury_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console": {
+      "get": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Serve Unified Console",
+        "description": "Render the state-of-the-art All-in-One FluxPay Single-Page Dashboard.",
+        "operationId": "serve_unified_console_console_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Serve Unified Console",
+        "description": "Render the state-of-the-art All-in-One FluxPay Single-Page Dashboard.",
+        "operationId": "serve_unified_console__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/state": {
+      "get": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Get State",
+        "description": "Retrieve atomic snapshot of all platform entities.",
+        "operationId": "get_state_api_console_state_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get State Api Console State Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/pay": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Execute Payment",
+        "description": "Execute live payment between agent and merchant or recipient agent (A2A).",
+        "operationId": "execute_payment_api_console_pay_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Execute Payment Api Console Pay Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/a2a": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Execute A2A Payment",
+        "description": "Execute live autonomous Agent-to-Agent (A2A / M2M) machine transfer.",
+        "operationId": "execute_a2a_payment_api_console_a2a_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/A2ARequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Execute A2A Payment Api Console A2A Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/agents": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Create Agent",
+        "description": "Create a new autonomous agent.",
+        "operationId": "create_agent_api_console_agents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Agent Api Console Agents Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/agents/{agent_id}/toggle": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Toggle Agent",
+        "description": "Toggle agent status (active / suspended).",
+        "operationId": "toggle_agent_api_console_agents__agent_id__toggle_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Toggle Agent Api Console Agents  Agent Id  Toggle Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/agents/{agent_id}/topup": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Topup Agent",
+        "description": "Fund an agent account.",
+        "operationId": "topup_agent_api_console_agents__agent_id__topup_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopupAgentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Topup Agent Api Console Agents  Agent Id  Topup Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/deposit": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Deposit Funds",
+        "description": "Confirm incoming crypto on-ramp deposit for an agent with real on-chain validation.",
+        "operationId": "deposit_funds_api_console_deposit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepositRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Deposit Funds Api Console Deposit Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/inspect-tx": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Inspect Blockchain Tx",
+        "description": "Inspect and decode on-chain transaction amount from Solana or TRON.",
+        "operationId": "inspect_blockchain_tx_api_console_inspect_tx_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectTxRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Inspect Blockchain Tx Api Console Inspect Tx Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/merchants": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Create Merchant",
+        "description": "Register a new merchant.",
+        "operationId": "create_merchant_api_console_merchants_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMerchantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Merchant Api Console Merchants Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/holds/{hold_id}/action": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Hold Action",
+        "description": "Approve or reject a quarantined payment.",
+        "operationId": "hold_action_api_console_holds__hold_id__action_post",
+        "parameters": [
+          {
+            "name": "hold_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hold Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HoldActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Hold Action Api Console Holds  Hold Id  Action Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/limits": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Update Limits",
+        "description": "Update risk limits for an agent.",
+        "operationId": "update_limits_api_console_limits_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLimitsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Update Limits Api Console Limits Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/verify-chain": {
+      "get": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Verify Chain",
+        "description": "Perform mathematical verification of the SHA-256 ledger hashchain.",
+        "operationId": "verify_chain_api_console_verify_chain_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Verify Chain Api Console Verify Chain Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/console/reset": {
+      "post": {
+        "tags": [
+          "unified_console"
+        ],
+        "summary": "Reset Demo",
+        "description": "Reset to clean initial zero state.",
+        "operationId": "reset_demo_api_console_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Reset Demo Api Console Reset Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/x402/challenge": {
+      "post": {
+        "tags": [
+          "x402 Payment Protocol"
+        ],
+        "summary": "Create Challenge",
+        "description": "Generate RFC 7231 / x402 Payment Required response challenge.",
+        "operationId": "create_challenge_x402_challenge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChallengeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "402": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/x402/verify": {
+      "post": {
+        "tags": [
+          "x402 Payment Protocol"
+        ],
+        "summary": "Verify Authorization",
+        "description": "Verify an agent's EIP-3009 authorization signature using eth-account (no KMS needed).",
+        "operationId": "verify_authorization_x402_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPayloadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Verify Authorization X402 Verify Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/x402/settle": {
+      "post": {
+        "tags": [
+          "x402 Payment Protocol"
+        ],
+        "summary": "Settle Payment",
+        "description": "Settle an authorized x402 payment and post immutable transaction to ledger.",
+        "operationId": "settle_payment_x402_settle_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Settle Payment X402 Settle Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/freeze-agent": {
+      "post": {
+        "tags": [
+          "Admin Emergency Controls"
+        ],
+        "summary": "Freeze Agent",
+        "description": "Instantly suspend an autonomous agent's credentials and prevent new payments.",
+        "operationId": "freeze_agent_admin_freeze_agent_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FreezeAgentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Freeze Agent Admin Freeze Agent Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/halt-withdrawals": {
+      "post": {
+        "tags": [
+          "Admin Emergency Controls"
+        ],
+        "summary": "Halt Withdrawals",
+        "description": "Toggle circuit breaker halting all outbound treasury and agent withdrawals.",
+        "operationId": "halt_withdrawals_admin_halt_withdrawals_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CircuitToggleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Halt Withdrawals Admin Halt Withdrawals Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/emergency-stop": {
+      "post": {
+        "tags": [
+          "Admin Emergency Controls"
+        ],
+        "summary": "Emergency Stop",
+        "description": "Platform-wide emergency stop. Rejects all payment ingress immediately.",
+        "operationId": "emergency_stop_admin_emergency_stop_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CircuitToggleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Emergency Stop Admin Emergency Stop Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/system-status": {
+      "get": {
+        "tags": [
+          "Admin Emergency Controls"
+        ],
+        "summary": "Get System Status",
+        "description": "Retrieve runtime state of platform circuit breakers and operating mode.",
+        "operationId": "get_system_status_admin_system_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get System Status Admin System Status Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/payments": {
       "post": {
         "summary": "Post Payment",
@@ -107,6 +1674,34 @@
   },
   "components": {
     "schemas": {
+      "A2ARequest": {
+        "properties": {
+          "from_agent_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "From Agent Id",
+            "description": "Paying Agent UUID"
+          },
+          "to_agent": {
+            "type": "string",
+            "title": "To Agent",
+            "description": "Recipient Agent UUID or external_id"
+          },
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "description": "Amount in USDC"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_agent_id",
+          "to_agent",
+          "amount"
+        ],
+        "title": "A2ARequest"
+      },
       "BalanceResponse": {
         "properties": {
           "balance": {
@@ -137,6 +1732,177 @@
           "currency": "USDC"
         }
       },
+      "ChallengeRequest": {
+        "properties": {
+          "resource_path": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Resource Path"
+          },
+          "merchant_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Merchant Id"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "USDC"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resource_path",
+          "merchant_id",
+          "amount_minor"
+        ],
+        "title": "ChallengeRequest",
+        "description": "Payload to request an x402 payment challenge for a protected resource."
+      },
+      "CircuitToggleRequest": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Reason"
+          },
+          "operator_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Operator Id",
+            "default": "OPERATOR"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "reason"
+        ],
+        "title": "CircuitToggleRequest",
+        "description": "Payload to toggle platform-wide circuit breakers."
+      },
+      "CreateAgentRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Name"
+          },
+          "external_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2,
+            "title": "External Id"
+          },
+          "initial_balance": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Initial Balance",
+            "default": 1000.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "external_id"
+        ],
+        "title": "CreateAgentRequest"
+      },
+      "CreateMerchantRequest": {
+        "properties": {
+          "external_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2,
+            "title": "External Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Name"
+          },
+          "webhook_url": {
+            "type": "string",
+            "title": "Webhook Url",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "external_id",
+          "name"
+        ],
+        "title": "CreateMerchantRequest"
+      },
+      "DepositRequest": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Agent Id"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "network": {
+            "type": "string",
+            "title": "Network",
+            "default": "SOLANA"
+          },
+          "tx_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tx Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "amount"
+        ],
+        "title": "DepositRequest"
+      },
+      "FreezeAgentRequest": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Agent Id"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "reason"
+        ],
+        "title": "FreezeAgentRequest",
+        "description": "Payload to suspend an autonomous agent."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -149,6 +1915,64 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HoldActionRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "pattern": "^(approve|reject)$",
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "HoldActionRequest"
+      },
+      "InspectTxRequest": {
+        "properties": {
+          "network": {
+            "type": "string",
+            "title": "Network",
+            "default": "SOLANA"
+          },
+          "tx_hash": {
+            "type": "string",
+            "title": "Tx Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tx_hash"
+        ],
+        "title": "InspectTxRequest"
+      },
+      "PayRequest": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Agent Id"
+          },
+          "to_merchant": {
+            "type": "string",
+            "title": "To Merchant"
+          },
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "description": "Amount in USDC"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "to_merchant",
+          "amount"
+        ],
+        "title": "PayRequest"
       },
       "PaymentDetail": {
         "properties": {
@@ -208,6 +2032,96 @@
           "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
           "status": "settled"
         }
+      },
+      "PaymentPayload": {
+        "properties": {
+          "from": {
+            "type": "string",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "title": "To"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Value"
+          },
+          "validAfter": {
+            "type": "integer",
+            "title": "Validafter"
+          },
+          "validBefore": {
+            "type": "integer",
+            "title": "Validbefore"
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce"
+          },
+          "v": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "V"
+          },
+          "r": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "R"
+          },
+          "s": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "S"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signature"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "value",
+          "validAfter",
+          "validBefore",
+          "nonce"
+        ],
+        "title": "PaymentPayload",
+        "description": "Decoded EIP-3009 transferWithAuthorization payload received in X-PAYMENT.\n\nSupports both flat authorization representations and nested authorization wrappers\nstandardized across x402 implementations."
       },
       "PaymentRequest": {
         "properties": {
@@ -281,6 +2195,80 @@
           "status": "settled"
         }
       },
+      "SettleRequest": {
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/PaymentPayload"
+          },
+          "merchant_address": {
+            "type": "string",
+            "title": "Merchant Address"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "title": "Idempotency Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payload",
+          "merchant_address"
+        ],
+        "title": "SettleRequest",
+        "description": "Payload to submit verified authorization for facilitator settlement."
+      },
+      "TopupAgentRequest": {
+        "properties": {
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "title": "TopupAgentRequest"
+      },
+      "UpdateLimitsRequest": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Agent Id"
+          },
+          "single_max": {
+            "type": "number",
+            "minimum": 1.0,
+            "title": "Single Max"
+          },
+          "daily_max": {
+            "type": "number",
+            "minimum": 1.0,
+            "title": "Daily Max"
+          },
+          "velocity_count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Velocity Count",
+            "default": 10
+          },
+          "velocity_window_s": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Velocity Window S",
+            "default": 60
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "single_max",
+          "daily_max"
+        ],
+        "title": "UpdateLimitsRequest"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -320,6 +2308,24 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerifyPayloadRequest": {
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/PaymentPayload"
+          },
+          "merchant_address": {
+            "type": "string",
+            "title": "Merchant Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payload",
+          "merchant_address"
+        ],
+        "title": "VerifyPayloadRequest",
+        "description": "Payload to verify an agent's EIP-3009 authorization signature."
       }
     }
   }

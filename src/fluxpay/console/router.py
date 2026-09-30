@@ -74,11 +74,9 @@ async def serve_unified_console(request: Request) -> HTMLResponse:
     """Render the state-of-the-art All-in-One FluxPay Single-Page Dashboard."""
     state = console_engine.get_full_state()
     return templates.TemplateResponse(
-        name="unified_console.html",
-        context={
-            "request": request,
-            "state": state,
-        },
+        request,
+        "unified_console.html",
+        {"state": state},
     )
 
 

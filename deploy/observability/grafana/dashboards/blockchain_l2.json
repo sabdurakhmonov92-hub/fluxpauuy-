@@ -1,0 +1,83 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "panels": [
+    {
+      "title": "Base L2 Indexer Block Lag",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "flx_indexer_lag_blocks",
+          "legendFormat": "Lag Blocks"
+        }
+      ]
+    },
+    {
+      "title": "Hot Wallet Native ETH Gas Balance",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "flx_hot_wallet_eth_balance",
+          "legendFormat": "Base ETH"
+        }
+      ]
+    },
+    {
+      "title": "Hot Wallet USDC Liquidity Balance",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "flx_hot_wallet_usdc_balance",
+          "legendFormat": "USDC (Tokens)"
+        }
+      ]
+    },
+    {
+      "title": "Ledger Imbalance (On-Chain vs Internal Ledger)",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "flx_ledger_imbalance",
+          "legendFormat": "Imbalance (USDC)"
+        }
+      ]
+    },
+    {
+      "title": "Base L2 Ingested Deposits vs Outbound Confirmations",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "expr": "rate(flx_indexer_events_ingested_total[5m])",
+          "legendFormat": "Inbound Deposits / sec"
+        },
+        {
+          "expr": "rate(flx_outbound_tx_confirmed_total[5m])",
+          "legendFormat": "Outbound Settlements / sec"
+        }
+      ]
+    },
+    {
+      "title": "Reorgs Detected & Fast-Forward Corrections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        {
+          "expr": "increase(flx_indexer_reorgs_detected_total[1h])",
+          "legendFormat": "Reorgs / hour"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["fluxpay", "blockchain", "base-l2"],
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "FluxPay - Base L2 Blockchain & Treasury Dashboard",
+  "uid": "flx-blockchain-l2"
+}

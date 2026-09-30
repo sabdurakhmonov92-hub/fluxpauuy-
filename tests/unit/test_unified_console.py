@@ -42,7 +42,11 @@ async def test_unified_console_pure_zero_flow() -> None:
         # 3. Create Real Agent with initial deposit
         res = await client.post(
             "/api/console/agents",
-            json={"name": "Real Alpha Agent", "external_id": "real_alpha_01", "initial_balance": 500.0},
+            json={
+                "name": "Real Alpha Agent",
+                "external_id": "real_alpha_01",
+                "initial_balance": 500.0,
+            },
         )
         assert res.status_code == 200
         agent_data = res.json()
@@ -51,7 +55,11 @@ async def test_unified_console_pure_zero_flow() -> None:
         # 4. Create Real Merchant at 0 balance
         res = await client.post(
             "/api/console/merchants",
-            json={"name": "Real Compute Provider", "external_id": "real_compute_inc", "webhook_url": ""},
+            json={
+                "name": "Real Compute Provider",
+                "external_id": "real_compute_inc",
+                "webhook_url": "",
+            },
         )
         assert res.status_code == 200
         merch_data = res.json()
@@ -63,7 +71,9 @@ async def test_unified_console_pure_zero_flow() -> None:
         data = res.json()
         assert len(data["agents"]) == 1
         assert len(data["merchants"]) == 1
-        assert data["stats"]["ledger_blocks_count"] == 2  # 2 double-entry blocks minted for funding!
+        assert (
+            data["stats"]["ledger_blocks_count"] == 2
+        )  # 2 double-entry blocks minted for funding!
         assert data["stats"]["zero_sum_conserved"] is True
 
         # 6. Execute Real Payment
@@ -104,7 +114,11 @@ async def test_unified_console_a2a_transfer() -> None:
         # 1. Create Agent Alpha with $1000
         res = await client.post(
             "/api/console/agents",
-            json={"name": "Buyer Bot Alpha", "external_id": "buyer_bot_01", "initial_balance": 1000.0},
+            json={
+                "name": "Buyer Bot Alpha",
+                "external_id": "buyer_bot_01",
+                "initial_balance": 1000.0,
+            },
         )
         assert res.status_code == 200
         agent_alpha_id = res.json()["id"]
@@ -112,7 +126,11 @@ async def test_unified_console_a2a_transfer() -> None:
         # 2. Create Agent Beta with $0 (worker bot)
         res = await client.post(
             "/api/console/agents",
-            json={"name": "Worker Bot Beta", "external_id": "worker_bot_02", "initial_balance": 0.0},
+            json={
+                "name": "Worker Bot Beta",
+                "external_id": "worker_bot_02",
+                "initial_balance": 0.0,
+            },
         )
         assert res.status_code == 200
         agent_beta_id = res.json()["id"]
@@ -163,4 +181,3 @@ async def test_unified_console_a2a_transfer() -> None:
         res = await client.get("/api/console/verify-chain")
         assert res.status_code == 200
         assert res.json()["valid"] is True
-

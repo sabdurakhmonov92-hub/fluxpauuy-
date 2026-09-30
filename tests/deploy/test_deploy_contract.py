@@ -331,7 +331,7 @@ def test_deploy_sh_syntax_and_contract() -> None:
     assert "sed -E" in content, "deploy.sh must use sed -E for DSN extraction"
     dsn_lines = [line for line in content.splitlines() if "FLX_PG_DSN" in line]
     for line in dsn_lines:
-        assert 'tr -d \'"\'' not in line and "tr -d '\"'" not in line, (
+        assert "tr -d '\"'" not in line and "tr -d '\"'" not in line, (
             "deploy.sh must not use tr -d '\"' in DSN extraction"
         )
 

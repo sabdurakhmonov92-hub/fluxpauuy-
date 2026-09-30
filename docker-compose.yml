@@ -1,0 +1,166 @@
+# ==============================================================================
+# FluxPay Development Docker Compose Stack (Part 4.2)
+# ==============================================================================
+name: fluxpay-dev
+
+services:
+  fluxpay-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fluxpay-api-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "9110:9110"
+    environment:
+      - FLX_ENV=development
+      - FLX_LOG_LEVEL=DEBUG
+      - FLX_PG_DSN=postgresql://fluxpay:fluxpay_dev_pass@postgres:5432/fluxpay_dev
+      - FLX_VALKEY_URL=redis://redis:6379/0
+      - FLX_RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - FLX_VAULT_MASTER_KEY=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=
+      - FLX_WEBHOOK_SIGNING_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - FLX_DASHBOARD_SECRET=fluxpay-dev-session-secret-key-32bytes-ok
+      - FLX_DASHBOARD_ORIGIN=http://localhost:8000
+      - FLX_BASE_RPC_URL=https://sepolia.base.org
+      - FLX_BASE_CHAIN_ID=84532
+      - FLX_BASE_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - fluxpay-net
+      - proxy-net
+
+  fluxpay-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fluxpay-worker-dev
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "fluxpay.workers.blockchain_reconciliation"]
+    environment:
+      - FLX_ENV=development
+      - FLX_PG_DSN=postgresql://fluxpay:fluxpay_dev_pass@postgres:5432/fluxpay_dev
+      - FLX_VALKEY_URL=redis://redis:6379/0
+      - FLX_RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - FLX_VAULT_MASTER_KEY=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=
+      - FLX_WEBHOOK_SIGNING_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - FLX_BASE_RPC_URL=https://sepolia.base.org
+      - FLX_BASE_CHAIN_ID=84532
+      - FLX_BASE_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - fluxpay-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: fluxpay-postgres-dev
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=fluxpay
+      - POSTGRES_PASSWORD=fluxpay_dev_pass
+      - POSTGRES_DB=fluxpay_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fluxpay -d fluxpay_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fluxpay-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: fluxpay-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - fluxpay-net
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: fluxpay-rabbitmq-dev
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fluxpay-net
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: fluxpay-prometheus-dev
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - fluxpay-net
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: fluxpay-grafana-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=fluxpay_admin
+    volumes:
+      - grafanadata:/var/lib/grafana
+    networks:
+      - fluxpay-net
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: fluxpay-nginx-dev
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx/fluxpay.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - fluxpay-api
+    networks:
+      - proxy-net
+
+networks:
+  fluxpay-net:
+    driver: bridge
+  proxy-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  rabbitdata:
+  grafanadata:
